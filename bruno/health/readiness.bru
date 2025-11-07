@@ -1,0 +1,11 @@
+meta {
+  name: readiness
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{host_url}}/actuator/health/readiness
+  body: none
+  auth: none
+}

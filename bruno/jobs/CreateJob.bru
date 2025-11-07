@@ -1,0 +1,45 @@
+meta {
+  name: CreateJob
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{host_url}}/jobs
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "mdl_job9",
+    "cron": "* 0/15 * * * *",
+    "stages": [
+      {
+        "name": "dqa",
+        "complete": -120
+      },
+      {
+        "name": "start",
+        "start": 60
+      },
+      {
+        "name": "stage1",
+        "start": 100,
+        "complete": 120
+      },
+      {
+        "name": "stage2",
+        "complete": 240
+      },
+      {
+        "name": "stage3",
+        "complete": 360
+      },
+      {
+        "name": "complete",
+        "complete": 480
+      }
+    ]
+  }
+}

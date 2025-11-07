@@ -1,0 +1,14 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+
+# Rust build artifacts
+target/
+
+# Node dependencies
+node_modules/
+frontend/node_modules/
+frontend/.next/

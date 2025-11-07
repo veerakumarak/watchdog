@@ -1,0 +1,11 @@
+meta {
+  name: liveness
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{host_url}}/actuator/health/liveness
+  body: none
+  auth: none
+}

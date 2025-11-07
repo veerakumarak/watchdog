@@ -1,0 +1,15 @@
+meta {
+  name: EventComplete
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{host_url}}/events/test/test_job/complete/complete
+  body: json
+  auth: none
+}
+
+body:json {
+  {}
+}
