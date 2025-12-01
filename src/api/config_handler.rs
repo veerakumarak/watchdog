@@ -2,7 +2,7 @@ use axum::extract::{Path, State};
 use axum::Json;
 use tracing::info;
 use crate::{SharedState};
-use crate::db::config_repository::{get_job_config_by_application_and_name, insert_config, save_config};
+use crate::db::config_repository::{get_all_applications, get_all_job_configs, get_job_config_by_application_and_name, get_jobs_by_application, insert_config, save_config};
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
 use crate::models::{JobConfig, NewJobConfig};
@@ -18,7 +18,7 @@ pub async fn get_config_by_app_and_name_handler(
     if let Some(_job_config) = job_config {
         Ok(AppResponse::success_one("config", _job_config))
     } else {
-        Err(AppError::NotFound(format!("Configuration already exists for application '{}' and job '{}'", application, job_name)))
+        Err(AppError::NotFound(format!("Configuration doesn't exists for application '{}' and job '{}'", application, job_name)))
     }
 }
 
@@ -46,7 +46,7 @@ pub async fn create_config_handler(
 
     let inserted = insert_config(&mut conn, config).await?;
 
-    Ok(AppResponse::success_one("config", inserted))
+    Ok(AppResponse::success_one("job-config", inserted))
 }
 
 pub async fn update_config_handler(
@@ -61,5 +61,39 @@ pub async fn update_config_handler(
 
     print!("{:?}", updated);
 
-    Ok(AppResponse::success_one("config", updated))
+    Ok(AppResponse::success_one("job-config", updated))
+}
+
+pub async fn get_all_configs_handler(
+    State(state): State<SharedState>,
+) -> Result<AppResponse<Vec<JobConfig>>, AppError> {
+
+    let mut conn = state.pool.get().await?;
+
+    let jobs = get_all_job_configs(&mut conn).await?;
+
+    Ok(AppResponse::success_one("job-configs", jobs))
+}
+
+pub async fn get_all_applications_handler(
+    State(state): State<SharedState>,
+) -> Result<AppResponse<Vec<String>>, AppError> {
+
+    let mut conn = state.pool.get().await?;
+
+    let applications = get_all_applications(&mut conn).await?;
+
+    Ok(AppResponse::success_one("applications", applications))
+}
+
+pub async fn list_jobs_by_app_handler(
+    State(state): State<SharedState>,
+    Path(app_name): Path<String>, // Extract app_name from URL
+) -> Result<AppResponse<Vec<JobConfig>>, AppError> {
+
+    let mut conn = state.pool.get().await?;
+
+    let jobs = get_jobs_by_application(&mut conn, app_name).await?;
+
+    Ok(AppResponse::success_one("job-configs", jobs))
 }

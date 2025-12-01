@@ -5,40 +5,51 @@ meta {
 }
 
 put {
-  url: {{host_url}}/jobs
+  url: {{host_url}}/job-configs/dd/mdl_job8
   body: json
   auth: none
 }
 
 body:json {
   {
-    "name": "mdl_job9",
-    "cron": "0 0/15 * * * *",
-    "stages": [
-      {
-        "name": "dqa",
-        "complete": -120
-      },
-      {
-        "name": "start",
-        "start": 60
-      },
-      {
-        "name": "stage1",
-        "complete": 120
-      },
-      {
-        "name": "stage2",
-        "complete": 240
-      },
-      {
-        "name": "stage3",
-        "complete": 360
-      },
-      {
-        "name": "complete",
-        "complete": 480
+        "application": "dd",
+        "job_name": "mdl_job8",
+        "schedule": "* 0/30 * * * *",
+        "zone_id": "",
+        "enabled": false,
+        "stages": [
+          {
+            "name": "dqa",
+            "start": null,
+            "complete": 0
+          },
+          {
+            "name": "start",
+            "start": 60,
+            "complete": null
+          },
+          {
+            "name": "stage1",
+            "start": 100,
+            "complete": 120
+          },
+          {
+            "name": "stage2",
+            "start": null,
+            "complete": 240
+          },
+          {
+            "name": "stage3",
+            "start": null,
+            "complete": 360
+          },
+          {
+            "name": "complete",
+            "start": null,
+            "complete": 480
+          }
+        ],
+        "created_at": "2025-12-01T15:17:41.120761Z",
+        "updated_at": "2025-12-01T15:17:41.120761Z"
       }
-    ]
-  }
 }

@@ -11,6 +11,7 @@ diesel::table! {
         #[max_length = 50]
         zone_id -> Nullable<Varchar>,
         enabled -> Bool,
+        stages -> Jsonb,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }

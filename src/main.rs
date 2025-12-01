@@ -24,10 +24,11 @@ use tokio::task::JoinHandle;
 use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 // use crate::api::event_handler::{log_stage_complete, start_job};
-use crate::api::health_handler::{health_check, health_check2};
+use crate::api::health_handler::{health_check_handler};
 use crate::config::{from_env, Config};
 use db::connection::{get_connection_pool, PgPool};
-use crate::api::config_handler::{create_config_handler, get_config_by_app_and_name_handler, update_config_handler};
+use crate::api::config_handler::{create_config_handler, get_all_applications_handler, get_all_configs_handler, get_config_by_app_and_name_handler, list_jobs_by_app_handler, update_config_handler};
+use crate::db::config_repository::{get_all_applications, get_all_job_configs};
 // --- 2. Application State ---
 // (Shared state accessible by all handlers)
 
@@ -59,9 +60,10 @@ async fn main() {
 
     // Build Axum routes
     let api_routes = Router::new()
-        .route("/health", get(health_check))
-        .route("/health2", get(health_check2))
-        .route("/job-configs", post(create_config_handler))
+        .route("/health", get(health_check_handler))
+        .route("/applications", get(get_all_applications_handler))
+        .route("/applications/{app_name}/job-configs", get(list_jobs_by_app_handler))
+        .route("/job-configs", get(get_all_configs_handler).post(create_config_handler))
         .route("/job-configs/{application}/{job_name}", get(get_config_by_app_and_name_handler).put(update_config_handler))
         // .route("/job-runs/start", post(start_job))
         // .route("/job-runs/stage", post(log_stage_complete))

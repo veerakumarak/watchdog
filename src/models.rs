@@ -15,11 +15,12 @@ use diesel::serialize::ToSql;
 // use diesel::expression::bound::Bound;
 use diesel::expression::*;
 
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct JobStageConfig {
-//     pub name: String,
-//     pub relative_time_limit_secs: u64, // e.g., 300 (5 minutes)
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobStageConfig {
+    pub name: String,
+    pub start: Option<u64>,
+    pub complete: Option<u64>,
+}
 
 // #[derive(Clone, Debug, Serialize, Deserialize)]
 // pub struct JsonbStages(pub Vec<JobStageConfig>);
@@ -72,7 +73,7 @@ pub struct JobConfig {
     pub schedule: Option<String>,
     pub zone_id: Option<String>,
     pub enabled: bool,
-    // pub stages: diesel_json::Json<Vec<JobStageConfig>>,
+    pub stages: diesel_json::Json<Vec<JobStageConfig>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -85,8 +86,7 @@ pub struct NewJobConfig {
     pub job_name: String,
     pub schedule: Option<String>,
     pub zone_id: Option<String>,
-    // pub enabled: bool,
-    // pub stages: diesel_json::Json<Vec<JobStageConfig>>,
+    pub stages: diesel_json::Json<Vec<JobStageConfig>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

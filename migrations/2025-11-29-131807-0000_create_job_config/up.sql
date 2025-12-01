@@ -9,7 +9,7 @@ CREATE TABLE job_configs (
                              enabled BOOLEAN NOT NULL DEFAULT TRUE,
 
     -- Nested structure: Stores the stages as a JSON document
---                              stages JSONB NOT NULL,
+                             stages JSONB NOT NULL,
 
     -- Timestamps
                              created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),

@@ -5,19 +5,21 @@ meta {
 }
 
 post {
-  url: {{host_url}}/jobs
+  url: {{host_url}}/job-configs
   body: json
   auth: none
 }
 
 body:json {
   {
-    "name": "mdl_job9",
-    "cron": "* 0/15 * * * *",
+    "application": "gemini",
+    "job_name": "mdl_job7",
+    "schedule": "* 0/25 * * * *",
+    "zone_id": "",
     "stages": [
       {
         "name": "dqa",
-        "complete": -120
+        "complete": 0
       },
       {
         "name": "start",

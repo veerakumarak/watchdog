@@ -20,6 +20,45 @@ pub async fn get_job_config_by_application_and_name(
     Ok(job_config)
 }
 
+pub async fn get_all_job_configs(
+    conn: &mut DbConnection<'_>,
+) -> Result<Vec<JobConfig>, AppError> {
+    use crate::schema::job_configs::dsl::*;
+    let jobs = job_configs
+        .load::<JobConfig>(conn)
+        .await?;
+
+    Ok(jobs)
+}
+
+pub async fn get_all_applications(
+    conn: &mut DbConnection<'_>,
+) -> Result<Vec<String>, AppError> {
+    use crate::schema::job_configs::dsl::*;
+
+    let apps = job_configs
+        .select(application)
+        .distinct() // distinct ensures we don't get duplicates
+        .load::<String>(conn)
+        .await?;
+
+    Ok(apps)
+}
+
+pub async fn get_jobs_by_application(
+    conn: &mut DbConnection<'_>,
+    app_target: String,
+) -> Result<Vec<JobConfig>, AppError> {
+    use crate::schema::job_configs::dsl::*;
+
+    let jobs = job_configs
+        .filter(application.eq(app_target))
+        .load::<JobConfig>(conn)
+        .await?;
+
+    Ok(jobs)
+}
+
 pub async fn insert_config(
     conn: &mut DbConnection<'_>,
     new_config: NewJobConfig,
