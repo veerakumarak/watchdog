@@ -86,10 +86,11 @@ async fn main() {
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/start", post(job_run_start_without_run_id_handler))
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/complete", post(job_run_complete_without_run_id_handler))
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/failed", post(job_run_failed_without_run_id_handler))
-        .fallback_service(serve_dir)
         .with_state(state);
 
-    let app = Router::new().nest("/api", api_routes);
+    let app = Router::new()
+        .nest("/api", api_routes)
+        .fallback_service(serve_dir);
 
     // Run the server
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
