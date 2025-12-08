@@ -1,0 +1,64 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--status-success);
+}
+
+.status-success .status-dot {
+  background-color: var(--status-success);
+}
+
+.status-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--status-error);
+}
+
+.status-error .status-dot {
+  background-color: var(--status-error);
+}
+
+.status-default {
+  background-color: rgba(203, 213, 225, 0.1);
+  color: var(--text-secondary);
+}
+
+.status-default .status-dot {
+  background-color: var(--text-secondary);
+  animation: none;
+}
+
+.status-info {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--status-info);
+}
+
+.status-info .status-dot {
+  background-color: var(--status-info);
+}
