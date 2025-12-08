@@ -4,11 +4,11 @@ FROM node:24-alpine AS frontend-builder
 WORKDIR /app
 
 # Copy package files and install dependencies
-COPY frontend/package.json frontend/package-lock.json ./frontend/
+COPY web/package.json web/package-lock.json ./frontend/
 RUN npm ci --prefix frontend
 
 # Copy the rest of the frontend source code and build
-COPY frontend/ ./frontend/
+COPY web/ ./frontend/
 RUN npm run build --prefix frontend
 # The static files are now in /app/frontend/out
 

@@ -18,6 +18,7 @@ use std::{
     net::SocketAddr,
     sync::Arc,
 };
+use tower_http::services::{ServeDir, ServeFile};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use crate::api::health_handler::{health_check_handler};
@@ -66,6 +67,10 @@ async fn main() {
         scheduler(&scheduler_pool, &dispatcher).await
     });
 
+    let web_build_path = "./web/dist";
+    let serve_dir = ServeDir::new(web_build_path)
+        .not_found_service(ServeFile::new(format!("{}/index.html", web_build_path)));
+
     // Build Axum routes
     let api_routes = Router::new()
         .route("/health", get(health_check_handler))
@@ -81,6 +86,7 @@ async fn main() {
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/start", post(job_run_start_without_run_id_handler))
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/complete", post(job_run_complete_without_run_id_handler))
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/failed", post(job_run_failed_without_run_id_handler))
+        .fallback_service(serve_dir)
         .with_state(state);
 
     let app = Router::new().nest("/api", api_routes);

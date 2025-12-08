@@ -22,7 +22,7 @@ bb8 = "0.9.0"
 diesel-async = { version = "0.7.4", features = ["postgres", "bb8"] }
 bigdecimal = "0.4.9"
 log = "0.4.28"
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "fs"] }
 regex = "1.12.2"
 once_cell = "1.21.3"
 base64-url = "3.0.0"
