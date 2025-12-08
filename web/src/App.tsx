@@ -1,37 +1,21 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom"
-import JobsList from "./pages/JobsList"
-import CreateJob from "./pages/CreateJob"
-import EditJob from "./pages/EditJob"
-import JobRunDetails from "./pages/JobRunDetails"
-import "./App.css"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { HomePage } from "./pages/HomePage"
+import { CreateJobPage } from "./pages/CreateJobPage"
+import { EditJobPage } from "./pages/EditJobPage"
+import { JobRunDetailsPage } from "./pages/JobRunDetailsPage"
 
 function App() {
   return (
-    <Router>
-      <div className="app-container">
-        <nav className="sidebar">
-          <div className="nav-header">
-            <h1>Job Monitor</h1>
-          </div>
-          <ul className="nav-links">
-            <li>
-              <Link to="/">Jobs</Link>
-            </li>
-            <li>
-              <Link to="/create">New Job</Link>
-            </li>
-          </ul>
-        </nav>
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<JobsList />} />
-            <Route path="/create" element={<CreateJob />} />
-            <Route path="/edit/:id" element={<EditJob />} />
-            <Route path="/job/:id/runs/:runId" element={<JobRunDetails />} />
-          </Routes>
-        </main>
+    <BrowserRouter>
+      <div className="flex min-h-screen bg-background">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/jobs/create" element={<CreateJobPage />} />
+          <Route path="/jobs/:id/edit" element={<EditJobPage />} />
+          <Route path="/jobs/:id/runs/:runId" element={<JobRunDetailsPage />} />
+        </Routes>
       </div>
-    </Router>
+    </BrowserRouter>
   )
 }
 
