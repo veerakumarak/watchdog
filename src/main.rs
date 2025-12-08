@@ -2,41 +2,38 @@ mod api;
 mod errors;
 mod jsend;
 mod models;
-mod notification;
 mod config;
 mod db;
 mod schema;
 mod core;
+mod dtos;
+mod cron_utils;
+mod scheduler;
+mod time_utils;
+mod notification;
 
-use axum::routing::{get, put};
-use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse, routing::post, Extension, Router};
-use serde::{Deserialize, Serialize};
+use axum::routing::{get};
+use axum::{routing::post, Router};
 use std::{
-    collections::HashMap,
     net::SocketAddr,
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use bb8::Pool;
-use diesel_async::AsyncPgConnection;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use tokio::task::JoinHandle;
-use tracing::{error, info, Level};
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-// use crate::api::event_handler::{log_stage_complete, start_job};
 use crate::api::health_handler::{health_check_handler};
 use crate::config::{from_env, Config};
 use db::connection::{get_connection_pool, PgPool};
-use crate::api::config_handler::{create_config_handler, get_all_applications_handler, get_all_configs_handler, get_config_by_app_and_name_handler, list_jobs_by_app_handler, update_config_handler};
-use crate::db::config_repository::{get_all_applications, get_all_job_configs};
-// --- 2. Application State ---
-// (Shared state accessible by all handlers)
-
+use crate::api::config_handler::{create_config_handler, get_all_applications_handler, get_all_configs_handler, get_config_by_app_name_and_job_name_handler, list_jobs_by_app_handler, update_config_handler};
+use crate::api::run_handler::{get_run_by_id_handler, job_run_complete_with_run_id_handler, job_run_complete_without_run_id_handler, job_run_failed_with_run_id_handler, job_run_failed_without_run_id_handler, job_run_start_with_run_id_handler, job_run_start_without_run_id_handler, job_run_trigger_handler};
+use crate::notification::dispatcher::NotificationDispatcher;
+use crate::notification::init::init_notification;
+use crate::scheduler::scheduler;
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config, // Note: Use the type name you have
     pub pool: PgPool,   // Assuming your pool type is PgPool
+    pub dispatcher: NotificationDispatcher,
 }
 
 type SharedState = Arc<AppState>;
@@ -51,11 +48,22 @@ async fn main() {
 
     let config = from_env();
 
-    let pool: Pool<AsyncDieselConnectionManager<AsyncPgConnection>> = get_connection_pool(&config.postgres_url).await.unwrap();
+    let pool: PgPool = get_connection_pool(&config.postgres_url)
+        .await
+        .expect("Failed to create Postgres connection pool! Is the DB running?");
+
+    let dispatcher = init_notification(pool.clone()).await;
 
     let state = Arc::new(AppState {
-        config: config.clone(), // Clone if Config is not already owned/Arc'd
-        pool: pool,
+        config: config.clone(),
+        pool: pool.clone(),
+        dispatcher: dispatcher.clone(),
+    });
+
+    // tokio::spawn(scheduler(&get_connection_pool(&config.postgres_url).await.unwrap()));
+    let scheduler_pool = pool.clone();
+    tokio::spawn(async move {
+        scheduler(&scheduler_pool, &dispatcher).await
     });
 
     // Build Axum routes
@@ -64,9 +72,15 @@ async fn main() {
         .route("/applications", get(get_all_applications_handler))
         .route("/applications/{app_name}/job-configs", get(list_jobs_by_app_handler))
         .route("/job-configs", get(get_all_configs_handler).post(create_config_handler))
-        .route("/job-configs/{application}/{job_name}", get(get_config_by_app_and_name_handler).put(update_config_handler))
-        // .route("/job-runs/start", post(start_job))
-        // .route("/job-runs/stage", post(log_stage_complete))
+        .route("/job-configs/{app_name}/{job_name}", get(get_config_by_app_name_and_job_name_handler).put(update_config_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/trigger", post(job_run_trigger_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/{job_run_id}/{stage_name}/start", post(job_run_start_with_run_id_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/{job_run_id}/{stage_name}/complete", post(job_run_complete_with_run_id_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/{job_run_id}/{stage_name}/failed", post(job_run_failed_with_run_id_handler))
+        .route("/job-runs/{job_run_id}", get(get_run_by_id_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/start", post(job_run_start_without_run_id_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/complete", post(job_run_complete_without_run_id_handler))
+        .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/failed", post(job_run_failed_without_run_id_handler))
         .with_state(state);
 
     let app = Router::new().nest("/api", api_routes);
@@ -77,17 +91,3 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
-
-// --- 5. Helper Functions ---
-
-/// Checks the `job_runs` table to see if a stage has been completed.
-
-fn get_current_timestamp() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-}
-
-// --- 6. Error Handling ---
-// (A simple error enum for clean handler responses)

@@ -2,16 +2,18 @@ use axum::http::StatusCode;
 use axum::Json;
 use axum::response::IntoResponse;
 use bb8::RunError;
+use chrono_tz::ParseError;
 use diesel_async::pooled_connection::PoolError;
+use strum_macros::Display;
 use crate::jsend::AppResponse;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum AppError {
     NotFound(String),
     DatabaseError(String),
     BadRequest(String),
-    Unauthorized(String),
-    Forbidden(String),
+    // Unauthorized(String),
+    // Forbidden(String),
     Conflict(String),
     InternalError(String),
 }
@@ -22,8 +24,8 @@ impl IntoResponse for AppError {
             AppError::NotFound(id) => (StatusCode::NOT_FOUND, format!("Resource not found: {}", id)),
             AppError::DatabaseError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", msg)),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("BadRequest: {}", msg)),
-            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, format!("Unauthorized: {}", msg)),
-            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, format!("Forbidden: {}", msg)),
+            // AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, format!("Unauthorized: {}", msg)),
+            // AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, format!("Forbidden: {}", msg)),
             AppError::Conflict(msg) => (StatusCode::CONFLICT, format!("Conflict: {}", msg)),
             AppError::InternalError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal error: {}", msg)),
         };
@@ -44,6 +46,12 @@ impl From<RunError<PoolError>> for AppError {
 }
 impl From<diesel::result::Error> for AppError {
     fn from(error: diesel::result::Error) -> Self {
+        AppError::DatabaseError(error.to_string())
+    }
+}
+
+impl From<ParseError> for AppError {
+    fn from(error: ParseError) -> Self {
         AppError::DatabaseError(error.to_string())
     }
 }

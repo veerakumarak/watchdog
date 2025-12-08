@@ -4,20 +4,30 @@ use crate::db::connection::DbConnection;
 use crate::errors::AppError;
 use crate::models::{JobConfig, NewJobConfig};
 
-
-pub async fn get_job_config_by_application_and_name(
+pub async fn get_job_config_by_app_name_and_job_name(
     conn: &mut DbConnection<'_>,
-    _application: &String,
-    _job_name: &String,
+    _app_name: &str,
+    _job_name: &str,
 ) -> Result<Option<JobConfig>, AppError> {
     use crate::schema::job_configs::dsl::*;
     let job_config = job_configs
-        .find((_application, _job_name))
+        .find((_app_name, _job_name))
         .first::<JobConfig>(conn)
         .await
         .optional()?;
 
     Ok(job_config)
+}
+
+pub async fn get_all_enabled_configs(
+    conn: &mut DbConnection<'_>,
+) -> Result<Vec<JobConfig>, AppError> {
+    let jobs = get_all_job_configs(conn).await?
+        .into_iter()
+        .filter(|job| job.enabled == false) // Safely check for true
+        .collect();
+
+    Ok(jobs)
 }
 
 pub async fn get_all_job_configs(
@@ -47,12 +57,12 @@ pub async fn get_all_applications(
 
 pub async fn get_jobs_by_application(
     conn: &mut DbConnection<'_>,
-    app_target: String,
+    _app_name: String,
 ) -> Result<Vec<JobConfig>, AppError> {
     use crate::schema::job_configs::dsl::*;
 
     let jobs = job_configs
-        .filter(application.eq(app_target))
+        .filter(application.eq(_app_name))
         .load::<JobConfig>(conn)
         .await?;
 
@@ -63,11 +73,8 @@ pub async fn insert_config(
     conn: &mut DbConnection<'_>,
     new_config: NewJobConfig,
 ) -> Result<JobConfig, AppError> {
-
     let _app_name = &new_config.application;
     let _job_name = &new_config.job_name;
-
-    // info!("Creating config for job: {:?}-{:?}", _app_name, _job_name);
 
     use crate::schema::job_configs::dsl::*;
     let job_config = diesel::insert_into(job_configs)
@@ -83,7 +90,6 @@ pub async fn save_config(
     config: JobConfig,
 ) -> Result<JobConfig, AppError> {
 
-    // info!("updating config for job: {}-{}", config.application, config.job_name);
     let target_app = config.application.clone();
     let target_job = config.job_name.clone();
 
@@ -95,22 +101,3 @@ pub async fn save_config(
 
     Ok(job_config)
 }
-
-// pub fn update_config(
-//     conn: &mut DbConnection<'_>,
-//     app: &str,
-//     job: &str,
-//     changes: UpdateJobConfig,
-// ) -> Result<JobConfig, AppError> {
-//     use crate::schema::job_configs::dsl::*;
-//
-//     // 1. Define the target row using the composite primary key
-//     let target = job_configs
-//         .filter(application.eq(app))
-//         .filter(job_name.eq(job));
-//
-//     // 2. Apply the changes from the UpdateJobConfig struct
-//     diesel::update(target)
-//         .set(changes)
-//         .get_result(conn)
-// }
