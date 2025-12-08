@@ -1,6 +1,6 @@
 # --- Stage 1: Build the Next.js Frontend ---
 # Use an official Node.js image as the base
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app
 
 # Copy package files and install dependencies
@@ -15,7 +15,7 @@ RUN npm run build --prefix frontend
 
 # --- Stage 2: Build the Rust Backend ---
 # Use the official Rust image
-FROM rust:1.78-alpine AS backend-builder
+FROM rust:1.91-alpine AS backend-builder
 WORKDIR /app
 
 # Install build dependencies for Alpine
