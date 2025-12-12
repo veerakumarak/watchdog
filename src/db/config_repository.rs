@@ -47,7 +47,7 @@ pub async fn get_all_applications(
     use crate::schema::job_configs::dsl::*;
 
     let apps = job_configs
-        .select(application)
+        .select(app_name)
         .distinct() // distinct ensures we don't get duplicates
         .load::<String>(conn)
         .await?;
@@ -62,7 +62,7 @@ pub async fn get_jobs_by_application(
     use crate::schema::job_configs::dsl::*;
 
     let jobs = job_configs
-        .filter(application.eq(_app_name))
+        .filter(app_name.eq(_app_name))
         .load::<JobConfig>(conn)
         .await?;
 
@@ -73,7 +73,7 @@ pub async fn insert_config(
     conn: &mut DbConnection<'_>,
     new_config: NewJobConfig,
 ) -> Result<JobConfig, AppError> {
-    let _app_name = &new_config.application;
+    let _app_name = &new_config.app_name;
     let _job_name = &new_config.job_name;
 
     use crate::schema::job_configs::dsl::*;
@@ -90,7 +90,7 @@ pub async fn save_config(
     config: JobConfig,
 ) -> Result<JobConfig, AppError> {
 
-    let target_app = config.application.clone();
+    let target_app = config.app_name.clone();
     let target_job = config.job_name.clone();
 
     use crate::schema::job_configs::dsl::*;

@@ -27,7 +27,7 @@ pub async fn check_all_timeouts(
     }
 
     let jobs_by_name: HashMap<String, JobConfig> = all_enabled_configs.iter()
-        .map(|job| (format!("{}-{}", &job.application, &job.job_name), job.clone()))
+        .map(|job| (format!("{}-{}", &job.app_name, &job.job_name), job.clone()))
         .collect();
 
     let utc_now = Utc::now();
@@ -84,7 +84,7 @@ async fn process_scheduled_job_timeouts(
                         // If event is null OR event.createdAt is before jobStartTime.minusMinutes(1)
                         if job_run_option.is_none() || job_run_option.as_ref().unwrap().created_at < job_start_time.sub(Duration::seconds(10)) {
                             let new_job = NewJobRun {
-                                application: job_config.application.clone(),
+                                application: job_config.app_name.clone(),
                                 job_name: job_config.job_name.clone(),
                                 status: JobRunStatus::InProgress,
                                 stages: diesel_json::Json(Vec::new()),
@@ -158,7 +158,7 @@ async fn update_event_stages(
         }
 
         for event_stage in job_run.stages.iter() {
-            send_timeout(&notification_dispatcher, &job_config.application, &job_config.job_name, &job_run, &event_stage.name, "Job timeout", vec!["slack_webhook".to_string()]).await;
+            send_timeout(&notification_dispatcher, &job_config.app_name, &job_config.job_name, &job_run, &event_stage.name, "Job timeout", vec!["slack_webhook".to_string()]).await;
         }
     }
 }

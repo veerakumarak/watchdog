@@ -17,9 +17,9 @@ pub struct JobStageConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Selectable, AsChangeset)]
 #[diesel(table_name = job_configs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[diesel(primary_key(application, job_name))]
+#[diesel(primary_key(app_name, job_name))]
 pub struct JobConfig {
-    pub application: String,
+    pub app_name: String,
     pub job_name: String,
     pub schedule: Option<String>,
     pub zone_id: Option<String>,
@@ -33,7 +33,7 @@ pub struct JobConfig {
 #[diesel(table_name = job_configs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewJobConfig {
-    pub application: String,
+    pub app_name: String,
     pub job_name: String,
     pub schedule: Option<String>,
     pub zone_id: Option<String>,

@@ -163,7 +163,7 @@ async fn job_run_update_stage(
         if job_run_option.is_some() {
             job_run = job_run_option.unwrap();
         } else {
-            job_run = create_new_job_run(conn, job_config.application.clone(), job_config.job_name.clone()).await?;
+            job_run = create_new_job_run(conn, job_config.app_name.clone(), job_config.job_name.clone()).await?;
         }
     }
 

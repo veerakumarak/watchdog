@@ -26,13 +26,13 @@ pub async fn create_config_handler(
     State(state): State<SharedState>,
     Json(job_config): Json<NewJobConfig>,
 ) -> Result<AppResponse<JobConfig>, AppError> {
-    info!("Creating config for job: {}-{}", job_config.application, job_config.job_name);
+    info!("Creating config for job: {}-{}", job_config.app_name, job_config.job_name);
 
     let mut conn = state.pool.get().await?;
 
     let existing = get_job_config_by_app_name_and_job_name(
         &mut conn,
-        &job_config.application,
+        &job_config.app_name,
         &job_config.job_name,
     ).await?;
 
@@ -40,7 +40,7 @@ pub async fn create_config_handler(
     if existing.is_some() {
         return Err(AppError::Conflict(format!(
             "Configuration already exists for application '{}' and job '{}'",
-            job_config.application, job_config.job_name
+            job_config.app_name, job_config.job_name
         )));
     }
 
@@ -54,10 +54,10 @@ pub async fn update_config_handler(
     Path((app_name, job_name)): Path<(String, String)>,
     Json(job_config): Json<JobConfig>,
 ) -> Result<AppResponse<JobConfig>, AppError> {
-    info!("Updating config for job: {}-{}", job_config.application, job_config.job_name);
+    info!("Updating config for job: {}-{}", job_config.app_name, job_config.job_name);
 
     // ToDo - change application to app_name
-    if app_name != job_config.application {
+    if app_name != job_config.app_name {
         return Err(AppError::BadRequest("invalid app_name provided".into()));
     }
     if job_name != job_config.job_name {

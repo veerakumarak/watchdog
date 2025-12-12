@@ -18,9 +18,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    job_configs (application, job_name) {
+    job_configs (app_name, job_name) {
         #[max_length = 255]
-        application -> Varchar,
+        app_name -> Varchar,
         #[max_length = 255]
         job_name -> Varchar,
         #[max_length = 50]

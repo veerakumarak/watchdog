@@ -1,6 +1,6 @@
 CREATE TABLE job_configs (
     -- Primary Key components (Composite Key)
-                             application VARCHAR(255) NOT NULL,
+                             app_name VARCHAR(255) NOT NULL,
                              job_name VARCHAR(255) NOT NULL,
 
     -- Core configuration fields
@@ -16,7 +16,7 @@ CREATE TABLE job_configs (
                              updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 
     -- Define the Composite Primary Key
-                             PRIMARY KEY (application, job_name)
+                             PRIMARY KEY (app_name, job_name)
 );
 
 -- 3. Apply the Diesel Trigger
