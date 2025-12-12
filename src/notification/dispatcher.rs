@@ -1,3 +1,4 @@
+use tracing::{error, info};
 use crate::db::channel_repository::get_channel_by_id;
 use crate::db::connection::PgPool;
 use crate::notification::core::AlertEvent;
@@ -24,7 +25,7 @@ impl NotificationDispatcher {
     /// The main entry point. The alerting system calls this.
     /// `channel_ids` are the DB IDs of the channels configured for this specific alert rule.
     pub async fn dispatch(&self, alert: AlertEvent, channel_ids: Vec<String>) {
-        println!("--- Dispatching Alert {} ---", alert.id);
+        info!("--- Dispatching Alert {} ---", alert.id);
 
         let mut join_handles = vec![];
 
@@ -44,22 +45,22 @@ impl NotificationDispatcher {
 
                     // 3. Spawn an async task for execution so channels don't block each other.
                     let handle = tokio::spawn(async move {
-                        println!("-> Sending via channel: '{}'", channel_name);
+                        info!("-> Sending via channel: '{}'", channel_name);
                         match plugin_ref.send(&alert_clone, &config_clone).await {
-                            Ok(_) => println!("<- Successfully sent via '{}'", channel_name),
-                            Err(e) => eprintln!("<- Failed to send via '{}': {}", channel_name, e),
+                            Ok(_) => info!("<- Successfully sent via '{}'", channel_name),
+                            Err(e) => error!("<- Failed to send via '{}': {}", channel_name, e),
                         }
                     });
                     join_handles.push(handle);
 
                 } else {
-                    eprintln!(
+                    error!(
                         "Error: No plugin registered for type '{}' found in channel config '{}'",
                         channel_cfg.provider_type, channel_id
                     );
                 }
             } else {
-                eprintln!("Error: Channel ID '{}' not found in database.", channel_id);
+                error!("Error: Channel ID '{}' not found in database.", channel_id);
             }
         }
 
@@ -67,7 +68,7 @@ impl NotificationDispatcher {
         for handle in join_handles {
             let _ = handle.await;
         }
-        println!("--- Dispatch Complete ---");
+        info!("--- Dispatch Complete ---");
     }
 }
 

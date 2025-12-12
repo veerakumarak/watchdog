@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use log::info;
 use serde_json::Value;
 use crate::errors::AppError;
 use crate::notification::core::{AlertEvent};
@@ -24,7 +25,7 @@ impl NotificationPlugin for SlackPlugin {
 
     async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError> {
         let webhook_url = config["webhook_url"].as_str().unwrap(); // Safe due to validation
-        println!(
+        info!(
             "[Slack Plugin] Sending Slack message to URL: {}\n\tMessage: [{}] {}",
             webhook_url, alert.severity, alert.message
         );

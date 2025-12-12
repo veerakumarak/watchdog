@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use log::info;
 use serde_json::Value;
 use crate::errors::AppError;
 use crate::notification::core::{AlertEvent};
@@ -28,7 +29,7 @@ impl NotificationPlugin for EmailPlugin {
     async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError> {
         let host = config["smtp_host"].as_str().unwrap_or("localhost");
         let to = config["to_addresses"].as_array().unwrap();
-        println!(
+        info!(
             "[Email Plugin] Connecting to SMTP server at {}. Sending email to {:?}.\n\tSubject: Alert {}\n\tBody: {}",
             host, to, alert.id, alert.message
         );
