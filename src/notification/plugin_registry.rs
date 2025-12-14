@@ -3,8 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::Value;
 use crate::errors::AppError;
-use crate::models::ProviderType;
-use crate::notification::core::AlertEvent;
+use crate::models::{JobConfig, JobRun, ProviderType};
+use crate::notification::core::{AlertEvent, AlertType};
 
 #[async_trait]
 pub trait NotificationPlugin: Send + Sync {
@@ -17,6 +17,7 @@ pub trait NotificationPlugin: Send + Sync {
     /// The core logic to execute the notification.
     /// It takes the generic alert and the provider-specific JSON config.
     async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError>;
+    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, config: &Value, alert_type: AlertType) -> Result<(), AppError>;
 }
 
 

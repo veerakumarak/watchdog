@@ -1,23 +1,23 @@
 meta {
-  name: CreateChannel
+  name: UpdateChannel
   type: http
-  seq: 1
+  seq: 3
 }
 
-post {
-  url: {{host_url}}/channels
+put {
+  url: {{host_url}}/channels/gmail
   body: json
   auth: none
 }
 
 body:json {
   {
-    "id": "gmail2",
+    "id": "gmail",
     "name": "gmail",
     "provider_type": "EmailSmtp",
     "configuration": {
       "smtp_host": "smtp.gmail.com",
-      "smtp_port": 1,
+      "smtp_port": "",
       "to_addresses": []
     }
   }

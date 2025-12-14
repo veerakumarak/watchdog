@@ -64,6 +64,7 @@ cron = "0.15.0"
 linked-hash-map = "0.5.6"
 lettre = "0.11.19"
 tera = "1.20.1"
+validify = "2.0.0"
 ##tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 #
 ##utils

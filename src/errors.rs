@@ -5,6 +5,7 @@ use bb8::RunError;
 use chrono_tz::ParseError;
 use diesel_async::pooled_connection::PoolError;
 use strum_macros::Display;
+use validator::{ValidationErrors};
 use crate::jsend::AppResponse;
 
 #[derive(Debug, Display)]
@@ -55,3 +56,15 @@ impl From<ParseError> for AppError {
         AppError::DatabaseError(error.to_string())
     }
 }
+
+impl From<ValidationErrors> for AppError {
+    fn from(error: ValidationErrors) -> Self {
+        AppError::BadRequest(error.to_string())
+    }
+}
+
+// impl From<std::io::Error> for AppError {
+//     fn from(error: std::io::Error) -> Self {
+//         AppError::InternalError(error.to_string())
+//     }
+// }

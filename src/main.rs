@@ -11,6 +11,7 @@ mod cron_utils;
 mod scheduler;
 mod time_utils;
 mod notification;
+mod validations;
 
 use axum::routing::{get};
 use axum::{routing::post, Router};

@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use serde_json::Value;
 use tracing::info;
 use crate::errors::AppError;
-use crate::models::ProviderType;
+use crate::models::{JobConfig, JobRun, ProviderType};
 use crate::models::ProviderType::GchatWebhook;
-use crate::notification::core::{AlertEvent};
+use crate::notification::core::{AlertEvent, AlertType};
 use crate::notification::plugin_registry::NotificationPlugin;
 
 pub struct GchatPlugin;
@@ -35,5 +35,31 @@ impl NotificationPlugin for GchatPlugin {
         tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
         Ok(())
     }
+
+    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+        todo!()
+    }
 }
+
+fn render_message(alert_type: AlertType, job_config: &JobConfig, job_run: &JobRun, stage: &str) -> String {
+    match alert_type {
+        // AlertType::Error =>
+        //     "🕵️ *Watchdog Error* 🕵️\n*Application*: {application}\n*Dag Name*: {dag}\n*Stage Name*: {stage}\n*Message*: {message}",
+        AlertType::Timeout =>
+            "⏳ Job Timeout ⏳\n*Application*: {application}\n*Dag Name*: {dag}\n*Stage Name*: {stage}\n*Run Id*: {run_id}"
+                .replace("{app_name}", &job_config.app_name)
+                .replace("{job_name}", &job_config.job_name)
+                .replace("{stage}", stage)
+                .replace("{run_id}", &job_run.id.to_string())
+        ,
+        AlertType::Failed =>
+            "🚨 Job Failed 🚨\n*Application*: {application}\n*Dag Name*: {dag}\n*Stage Name*: {stage}\n*Run Id*: {run_id}\n*Message*: {message}"
+                .replace("{app_name}", &job_config.app_name)
+                .replace("{job_name}", &job_config.job_name)
+                .replace("{stage}", stage)
+                .replace("{run_id}", &job_run.id.to_string())
+        ,
+    }
+}
+
 
