@@ -4,13 +4,20 @@ pub mod sql_types {
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "job_run_status"))]
     pub struct JobRunStatus;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "provider_type"))]
+    pub struct ProviderType;
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::ProviderType;
+
     channels (id) {
         id -> Varchar,
         name -> Varchar,
-        provider_type -> Varchar,
+        provider_type -> ProviderType,
         configuration -> Jsonb,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,

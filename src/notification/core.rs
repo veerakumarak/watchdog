@@ -1,3 +1,4 @@
+use log::info;
 use serde::{Deserialize, Serialize};
 use crate::models::JobRun;
 use crate::notification::dispatcher::NotificationDispatcher;
@@ -9,7 +10,28 @@ pub struct AlertEvent {
     pub severity: String,
 }
 
+/*
+        String id,
+        Type type,
+        String recipient,
+        String message,
+        String other,
+        String from,
+//        LocalDateTime timestamp,
+        Status status
+
+ */
 pub async fn send_failed(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, run: &JobRun, stage_name: &str, message: &str, channels: Vec<String>) {
+    info!("in send failed");
+    let alert_info = AlertEvent {
+        id: run.id.to_string(),
+        message: message.to_string(),
+        severity: "CRITICAL".to_string(),
+    };
+    dispatcher.dispatch(alert_info, channels).await;
+}
+pub async fn send_failed2(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, run: &JobRun, stage_name: &str, message: &str, channels: Vec<String>) {
+    info!("in send failed");
     let alert_info = AlertEvent {
         id: run.id.to_string(),
         message: message.to_string(),
@@ -18,6 +40,7 @@ pub async fn send_failed(dispatcher: &NotificationDispatcher, app_name: &str, jo
     dispatcher.dispatch(alert_info, channels).await;
 }
 pub async fn send_timeout(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, run: &JobRun, stage_name: &str, message: &str, channels: Vec<String>) {
+    info!("in send timeout");
     let alert_info = AlertEvent {
         id: run.id.to_string(),
         message: message.to_string(),
@@ -26,6 +49,7 @@ pub async fn send_timeout(dispatcher: &NotificationDispatcher, app_name: &str, j
     dispatcher.dispatch(alert_info, channels).await;
 }
 pub async fn send_error(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, message: &str, channels: Vec<String>) {
+    info!("in send error");
     let alert_info = AlertEvent {
         id: uuid::Uuid::new_v4().to_string(),
         message: message.to_string(),

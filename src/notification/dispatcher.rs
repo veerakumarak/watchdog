@@ -18,7 +18,6 @@ impl NotificationDispatcher {
         Self {
             db,
             registry,
-            // simulated_config_db: simulated_db,
         }
     }
 

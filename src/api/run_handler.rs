@@ -10,7 +10,7 @@ use crate::db::connection::DbConnection;
 use crate::db::run_repository::{create_new_job_run, get_job_run_by_id, get_latest_job_run_by_app_name_and_job_name, insert_run, save_run};
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
-use crate::models::{JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
+use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
 use crate::notification::core::send_failed;
 use crate::time_utils::{change_timezone, change_to_utc, get_utc_now};
 
@@ -60,16 +60,20 @@ pub async fn job_run_start_with_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
-    let mut conn = state.pool.get().await?;
-    let job_run = job_run_update_stage(&mut conn, &app_name, &job_name, Some(job_run_id), &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
-    Ok(AppResponse::success_one("job-run", job_run))
+    _job_run_start_handler(State(state), Path((app_name, job_name, Some(job_run_id), stage_name))).await
 }
 pub async fn job_run_start_without_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
+    _job_run_start_handler(State(state), Path((app_name, job_name, None, stage_name))).await
+}
+async fn _job_run_start_handler(
+    State(state): State<SharedState>,
+    Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
+) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let job_run = job_run_update_stage(&mut conn, &app_name, &job_name, None, &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
+    let (_job_config, job_run) = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
@@ -77,16 +81,20 @@ pub async fn job_run_complete_with_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
-    let mut conn = state.pool.get().await?;
-    let job_run = job_run_update_stage(&mut conn, &app_name, &job_name, Some(job_run_id), &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
-    Ok(AppResponse::success_one("job-run", job_run))
+    _job_run_complete_handler(State(state), Path((app_name, job_name, Some(job_run_id), stage_name))).await
 }
 pub async fn job_run_complete_without_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
+    _job_run_complete_handler(State(state), Path((app_name, job_name, None, stage_name))).await
+}
+async fn _job_run_complete_handler(
+    State(state): State<SharedState>,
+    Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
+) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let job_run = job_run_update_stage(&mut conn, &app_name, &job_name, None, &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
+    let (_job_config, job_run) = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
@@ -94,22 +102,21 @@ pub async fn job_run_failed_with_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
-    let mut conn = state.pool.get().await?;
-    let result = job_run_update_stage(&mut conn, &app_name, &job_name, Some(job_run_id), &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
-    if let Ok(job_run) = result {
-        send_failed(&state.dispatcher, &app_name, &job_name, &job_run, &stage_name, "Job failed", vec!["slack_webhook".to_string()]).await;
-        Ok(AppResponse::success_one("job-run", job_run))
-    } else {
-        Err(result.err().unwrap())
-    }
+    _job_run_failed_handler(State(state), Path((app_name, job_name, Some(job_run_id), stage_name))).await
 }
 pub async fn job_run_failed_without_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
+    _job_run_failed_handler(State(state), Path((app_name, job_name, None, stage_name))).await
+}
+async fn _job_run_failed_handler(
+    State(state): State<SharedState>,
+    Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
+) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let result = job_run_update_stage(&mut conn, &app_name, &job_name, None, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
-    if let Ok(job_run) = result {
+    let result = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
+    if let Ok((_job_config, job_run)) = result {
         send_failed(&state.dispatcher, &app_name, &job_name, &job_run, &stage_name, "Job failed", vec!["slack_webhook".to_string()]).await;
         Ok(AppResponse::success_one("job-run", job_run))
     } else {
@@ -132,8 +139,7 @@ async fn job_run_update_stage(
     stage_name: &String,
     stage_type: JobRunStageType,
     stage_status: JobRunStageStatus
-) -> Result<JobRun, AppError> {
-
+) -> Result<(JobConfig, JobRun), AppError> {
     let job_config_option = get_job_config_by_app_name_and_job_name(conn, &app_name, &job_name).await?;
     if job_config_option.is_none() {
         return Err(AppError::NotFound(format!("job config not found for: {}-{}", &app_name, &job_name)))
@@ -195,5 +201,5 @@ async fn job_run_update_stage(
     job_run.status = get_status(&job_config, &job_run);
 
     let updated = save_run(conn, job_run).await?;
-    Ok(updated)
+    Ok((job_config, updated))
 }

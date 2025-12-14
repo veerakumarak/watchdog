@@ -62,6 +62,8 @@ tracing-subscriber = "0.3.22"
 chrono-tz = "0.10.4"
 cron = "0.15.0"
 linked-hash-map = "0.5.6"
+lettre = "0.11.19"
+tera = "1.20.1"
 ##tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 #
 ##utils

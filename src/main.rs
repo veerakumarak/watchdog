@@ -24,6 +24,7 @@ use tracing_subscriber::FmtSubscriber;
 use crate::api::health_handler::{health_check_handler};
 use crate::config::{from_env, Config};
 use db::connection::{get_connection_pool, PgPool};
+use crate::api::channel_handler::{create_channel_handler, get_all_channel_providers_handler, get_all_channels_handler, get_channel_by_id_handler, update_channel_handler};
 use crate::api::config_handler::{create_config_handler, get_all_applications_handler, get_all_configs_handler, get_config_by_app_name_and_job_name_handler, list_jobs_by_app_handler, update_config_handler};
 use crate::api::run_handler::{get_run_by_id_handler, job_run_complete_with_run_id_handler, job_run_complete_without_run_id_handler, job_run_failed_with_run_id_handler, job_run_failed_without_run_id_handler, job_run_start_with_run_id_handler, job_run_start_without_run_id_handler, job_run_trigger_handler};
 use crate::notification::dispatcher::NotificationDispatcher;
@@ -86,6 +87,9 @@ async fn main() {
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/start", post(job_run_start_without_run_id_handler))
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/complete", post(job_run_complete_without_run_id_handler))
         .route("/job-runs/{app_name}/job-runs/{job_name}/{stage_name}/failed", post(job_run_failed_without_run_id_handler))
+        .route("/channels", get(get_all_channels_handler).post(create_channel_handler))
+        .route("/channels/providers", get(get_all_channel_providers_handler))
+        .route("/channels/{id}", get(get_channel_by_id_handler).put(update_channel_handler))
         .with_state(state);
 
     let app = Router::new()

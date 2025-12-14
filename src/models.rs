@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use diesel_derive_enum::DbEnum;
 use serde_json::Value;
+use strum_macros::{Display, EnumIter};
 use uuid::Uuid;
 use crate::schema::*;
 
@@ -90,13 +91,22 @@ pub struct NewJobRun {
     pub stages: diesel_json::Json<Vec<JobRunStage>>,
 }
 
+#[derive(Display, Debug, Clone, Serialize, Deserialize, DbEnum, PartialEq, EnumIter, Eq, Hash)]
+#[db_enum(existing_type_path = "crate::schema::sql_types::ProviderType")]
+#[db_enum(value_style = "snake_case")]
+pub enum ProviderType {
+    GchatWebhook,
+    EmailSmtp,
+    SlackWebhook,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Selectable, AsChangeset)]
 #[diesel(table_name = channels)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Channel {
     pub id: String,
     pub name: String,
-    pub provider_type: String,
+    pub provider_type: ProviderType,
     pub configuration: Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -107,6 +117,6 @@ pub struct Channel {
 pub struct NewChannel {
     pub id: String,
     pub name: String,
-    pub provider_type: String,
+    pub provider_type: ProviderType,
     pub configuration: Value,
 }

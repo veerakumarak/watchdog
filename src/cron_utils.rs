@@ -7,7 +7,7 @@ use crate::errors::AppError;
 use std::str::FromStr;
 
 pub fn get_cron_start_time(job: &JobConfig, current_time: &DateTime<Tz>) -> Result<DateTime<Tz>, AppError> {
-    let min_duration: i64 = job.stages.iter().map(|a| a.start.unwrap()).min().unwrap_or_else(|| 0) as i64;
+    let min_duration: i64 = job.stages.iter().filter_map(|a| a.start).min().unwrap_or_else(|| 0) as i64;
     let reference_start_time = current_time.sub(Duration::seconds(min_duration));
 
     if let Some(cron) = &job.schedule {

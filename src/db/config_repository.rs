@@ -24,7 +24,7 @@ pub async fn get_all_enabled_configs(
 ) -> Result<Vec<JobConfig>, AppError> {
     let jobs = get_all_job_configs(conn).await?
         .into_iter()
-        .filter(|job| job.enabled == false) // Safely check for true
+        .filter(|job| job.enabled == true) // Safely check for true
         .collect();
 
     Ok(jobs)

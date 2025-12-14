@@ -56,7 +56,6 @@ pub async fn update_config_handler(
 ) -> Result<AppResponse<JobConfig>, AppError> {
     info!("Updating config for job: {}-{}", job_config.app_name, job_config.job_name);
 
-    // ToDo - change application to app_name
     if app_name != job_config.app_name {
         return Err(AppError::BadRequest("invalid app_name provided".into()));
     }
