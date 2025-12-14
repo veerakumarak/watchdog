@@ -26,6 +26,7 @@ pub struct JobConfig {
     pub zone_id: Option<String>,
     pub enabled: bool,
     pub stages: diesel_json::Json<Vec<JobStageConfig>>,
+    pub channel_ids: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -39,6 +40,7 @@ pub struct NewJobConfig {
     pub schedule: Option<String>,
     pub zone_id: Option<String>,
     pub stages: diesel_json::Json<Vec<JobStageConfig>>,
+    pub channel_ids: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, DbEnum, PartialEq)]
@@ -97,7 +99,6 @@ pub struct NewJobRun {
 pub enum ProviderType {
     GchatWebhook,
     EmailSmtp,
-    SlackWebhook,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Selectable, AsChangeset)]

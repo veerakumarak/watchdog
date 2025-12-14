@@ -5,20 +5,18 @@ meta {
 }
 
 put {
-  url: {{host_url}}/channels/gmail
+  url: {{host_url}}/channels/gchat
   body: json
   auth: none
 }
 
 body:json {
   {
-    "id": "gmail",
-    "name": "gmail",
-    "provider_type": "EmailSmtp",
+    "id": "gchat",
+    "name": "gchat",
+    "provider_type": "GchatWebhook",
     "configuration": {
-      "smtp_host": "smtp.gmail.com",
-      "smtp_port": "",
-      "to_addresses": []
+      "webhook_url": ""
     }
   }
 }

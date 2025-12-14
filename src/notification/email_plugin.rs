@@ -67,6 +67,9 @@ impl NotificationPlugin for EmailPlugin {
     }
 
     async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+        let _config: Config = serde_json::from_value(config.clone()).map_err(|e| {
+            AppError::BadRequest(format!("invalid config provided {}", e))
+        })?;
         let host = config["smtp_host"].as_str().unwrap_or("localhost");
         let to = config["to_addresses"].as_array().unwrap();
         // info!(
@@ -78,8 +81,8 @@ impl NotificationPlugin for EmailPlugin {
         let (subject, body) = render_message(alert_type, job_config, job_run,"");
 
         let email = Message::builder()
-            .from("Sender <sender@gmail.com>".parse().unwrap())
-            .to("Receiver <receiver@gmail.com>".parse().unwrap())
+            .from("watchdog@nielse.com".parse().unwrap())
+            .to("kotiveerakumar.ankam@nielsen.com".parse().unwrap())
             .subject(subject)
             .body(body)
             .unwrap();

@@ -15,7 +15,7 @@ body:json {
     "app_name": "gemini",
     "job_name": "mdl_job1",
     "schedule": "* 0/15 * * * *",
-    "zone_id": "",
+    "zone_id": "US/Eastern",
     "stages": [
       {
         "name": "dqa",
@@ -42,6 +42,7 @@ body:json {
         "name": "complete",
         "complete": 480
       }
-    ]
+    ],
+    "channel_ids": "gchat"
   }
 }

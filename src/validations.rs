@@ -22,3 +22,21 @@ pub fn validate_email_list(emails: &Vec<String>) -> Result<(), ValidationError> 
 
     Ok(())
 }
+
+pub fn validate_url(url: &String) -> Result<(), ValidationError> {
+    // Check if it starts with http/https and contains "://"
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err(ValidationError::new("invalid_url"));
+    }
+
+    // Check if it's too short to contain a domain
+    if url.len() < 8 { // "http://x" is 8 chars
+        return Err(ValidationError::new("invalid_url"));
+    }
+
+    // Basic check for whitespace (URLs should not have spaces)
+    if url.contains(char::is_whitespace) {
+        return Err(ValidationError::new("invalid_url"));
+    }
+    Ok(())
+}

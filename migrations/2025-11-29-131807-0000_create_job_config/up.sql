@@ -1,22 +1,25 @@
-CREATE TABLE job_configs (
+CREATE TABLE job_configs
+(
     -- Primary Key components (Composite Key)
-                             app_name VARCHAR(255) NOT NULL,
-                             job_name VARCHAR(255) NOT NULL,
+    app_name    VARCHAR(255)             NOT NULL,
+    job_name    VARCHAR(255)             NOT NULL,
 
     -- Core configuration fields
-                             schedule VARCHAR(50), -- e.g., "0 5 * * *"
-                             zone_id VARCHAR(50),
-                             enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    schedule    VARCHAR(50), -- e.g., "0 5 * * *"
+    zone_id     VARCHAR(50),
+    enabled     BOOLEAN                  NOT NULL DEFAULT TRUE,
 
     -- Nested structure: Stores the stages as a JSON document
-                             stages JSONB NOT NULL,
+    stages      JSONB                    NOT NULL,
+
+    channel_ids VARCHAR            NOT NULL,
 
     -- Timestamps
-                             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 
     -- Define the Composite Primary Key
-                             PRIMARY KEY (app_name, job_name)
+    PRIMARY KEY (app_name, job_name)
 );
 
 -- 3. Apply the Diesel Trigger

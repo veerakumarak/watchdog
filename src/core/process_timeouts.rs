@@ -1,4 +1,4 @@
-use tracing::{error};
+use tracing::{error, info};
 use std::collections::{HashMap};
 use std::ops::Sub;
 use chrono::{Duration, DateTime, Utc};
@@ -12,7 +12,7 @@ use crate::db::run_repository::{get_all_pending_job_runs, insert_run, save_run};
 use crate::errors::AppError;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, NewJobRun};
 use crate::cron_utils::{get_job_start_time, in_between};
-use crate::notification::core::{send_timeout};
+use crate::notification::core::{send_timeout, send_timeout2};
 use crate::notification::dispatcher::NotificationDispatcher;
 use crate::time_utils::{change_to_utc, get_tz};
 
@@ -158,7 +158,9 @@ async fn update_event_stages(
         }
 
         for event_stage in job_run.stages.iter() {
-            send_timeout(&notification_dispatcher, &job_config.app_name, &job_config.job_name, &job_run, &event_stage.name, "Job timeout", vec!["slack_webhook".to_string()]).await;
+            // send_timeout(&notification_dispatcher, &job_config.app_name, &job_config.job_name, &job_run, &event_stage.name, "Job timeout", vec!["gmail".to_string()]).await;
+            info!("in event timeout");
+            send_timeout2(&notification_dispatcher, &job_config, &job_run, &event_stage.name, &job_config.channel_ids).await
         }
     }
 }

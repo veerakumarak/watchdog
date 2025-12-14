@@ -36,6 +36,7 @@ diesel::table! {
         zone_id -> Nullable<Varchar>,
         enabled -> Bool,
         stages -> Jsonb,
+        channel_ids -> Varchar,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
     }

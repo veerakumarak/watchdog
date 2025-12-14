@@ -1,7 +1,7 @@
-use log::info;
+use tracing::info;
 use serde::{Deserialize, Serialize};
 use crate::models::{JobConfig, JobRun};
-use crate::notification::core::AlertType::Failed;
+use crate::notification::core::AlertType::{Failed, Timeout};
 use crate::notification::dispatcher::NotificationDispatcher;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,7 +57,11 @@ pub enum AlertType {
     Failed,
 }
 
-pub async fn send_failed2(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channels: Vec<String>) {
+pub async fn send_failed2(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str) {
     info!("in send failed2");
-    dispatcher.dispatch2(job_config, job_run, stage_name, channels, Failed).await;
+    dispatcher.dispatch2(job_config, job_run, stage_name, channel_ids_str, Failed).await;
+}
+pub async fn send_timeout2(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str) {
+    info!("in send timeout2");
+    dispatcher.dispatch2(job_config, job_run, stage_name, channel_ids_str, Timeout).await;
 }
