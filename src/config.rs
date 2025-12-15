@@ -7,6 +7,7 @@ pub struct Config {
     pub max_stage_duration_hours: i64,
     pub scheduler_initial_delay_ms: u64,
     pub scheduler_fixed_delay_ms: u64,
+    pub error_channel_ids: String,
 }
 
 pub fn from_env() -> Config {
@@ -16,5 +17,6 @@ pub fn from_env() -> Config {
         max_stage_duration_hours: env::var("MAX_STAGE_DURATION_HOURS").expect("MAX_STAGE_DURATION_HOURS must be set").parse().unwrap(),
         scheduler_initial_delay_ms: 2000,
         scheduler_fixed_delay_ms: 30000,
+        error_channel_ids: env::var("ERROR_CHANNEL_IDS").expect("ERROR_CHANNEL_IDS must be set"),
     }
 }
