@@ -29,7 +29,7 @@ pub async fn get_latest_job_run_by_app_name_and_job_name(
 ) -> Result<Option<JobRun>, AppError> {
     use crate::schema::job_runs::dsl::*;
     let job_run = job_runs
-        .filter(application.eq(_app_name))
+        .filter(app_name.eq(_app_name))
         .filter(job_name.eq(_job_name))
         .filter(triggered_at.ge(_start_time))
         .first::<JobRun>(conn)
@@ -59,7 +59,7 @@ pub async fn create_new_job_run(
 ) -> Result<JobRun, AppError> {
 
     let new_job_run = NewJobRun {
-        application: _app_name,
+        app_name: _app_name,
         job_name: _job_name,
         status: JobRunStatus::InProgress,
         stages: diesel_json::Json(Vec::new()),

@@ -11,35 +11,6 @@ pub struct AlertEvent {
     pub severity: String,
 }
 
-/*
-        String id,
-        Type type,
-        String recipient,
-        String message,
-        String other,
-        String from,
-//        LocalDateTime timestamp,
-        Status status
-
- */
-pub async fn send_failed(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, run: &JobRun, stage_name: &str, message: &str, channels: Vec<String>) {
-    info!("in send failed");
-    let alert_info = AlertEvent {
-        id: run.id.to_string(),
-        message: message.to_string(),
-        severity: "CRITICAL".to_string(),
-    };
-    dispatcher.dispatch(alert_info, channels).await;
-}
-pub async fn send_timeout(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, run: &JobRun, stage_name: &str, message: &str, channels: Vec<String>) {
-    info!("in send timeout");
-    let alert_info = AlertEvent {
-        id: run.id.to_string(),
-        message: message.to_string(),
-        severity: "CRITICAL".to_string(),
-    };
-    dispatcher.dispatch(alert_info, channels).await;
-}
 pub async fn send_error(dispatcher: &NotificationDispatcher, app_name: &str, job_name: &str, message: &str, channels: Vec<String>) {
     info!("in send error");
     let alert_info = AlertEvent {
@@ -57,11 +28,9 @@ pub enum AlertType {
     Failed,
 }
 
-pub async fn send_failed2(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str) {
-    info!("in send failed2");
-    dispatcher.dispatch2(job_config, job_run, stage_name, channel_ids_str, Failed).await;
+pub async fn send_failed(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, message: &String, channel_ids_str: &str) {
+    dispatcher.dispatch2(job_config, job_run, stage_name, channel_ids_str, Some(message.to_string()), Failed).await;
 }
-pub async fn send_timeout2(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str) {
-    info!("in send timeout2");
-    dispatcher.dispatch2(job_config, job_run, stage_name, channel_ids_str, Timeout).await;
+pub async fn send_timeout(dispatcher: &NotificationDispatcher, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str) {
+    dispatcher.dispatch2(job_config, job_run, stage_name, channel_ids_str, None, Timeout).await;
 }

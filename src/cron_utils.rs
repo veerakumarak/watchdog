@@ -6,14 +6,32 @@ use cron::Schedule;
 use crate::errors::AppError;
 use std::str::FromStr;
 
+pub fn get_min(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        _ => None,
+    }
+}
+
+pub fn get_max(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a.max(b)),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        _ => None,
+    }
+}
+
 pub fn get_cron_start_time(job: &JobConfig, current_time: &DateTime<Tz>) -> Result<DateTime<Tz>, AppError> {
-    let min_duration: i64 = job.stages.iter().filter_map(|a| a.start).min().unwrap_or_else(|| 0) as i64;
-    let reference_start_time = current_time.sub(Duration::seconds(min_duration));
+    // let min_duration: i64 = job.stages.iter().filter_map(|a| get_min(a.start, a.complete)).min().unwrap_or_else(|| 0) as i64;
+    // let reference_start_time = current_time.sub(Duration::seconds(min_duration));
 
     if let Some(cron) = &job.schedule {
-        get_previous_execution_time(&cron, &reference_start_time)
+        get_previous_execution_time(&cron, &current_time)
     } else {
-        Err(AppError::InternalError("schedule ot expected".parse().unwrap()))
+        Err(AppError::InternalError("schedule is expected".parse().unwrap()))
     }
 }
 
@@ -26,11 +44,12 @@ pub fn get_job_complete_time(job: &JobConfig, current_time: DateTime<Tz>) -> Res
         .stages
         .iter()
         .map(|a| {
-            if a.complete.is_some() {
-                a.complete.unwrap()
-            } else {
-                a.start.unwrap()
-            }
+            get_max(a.start, a.complete).unwrap_or_else(|| i64::MAX as u64)
+            // if a.complete.is_some() {
+            //     a.complete.unwrap()
+            // } else {
+            //     a.start.unwrap()
+            // }
         })
         .max()
         .unwrap_or_else(|| i64::MAX as u64);

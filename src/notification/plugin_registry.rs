@@ -17,7 +17,7 @@ pub trait NotificationPlugin: Send + Sync {
     /// The core logic to execute the notification.
     /// It takes the generic alert and the provider-specific JSON config.
     async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError>;
-    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, config: &Value, alert_type: AlertType) -> Result<(), AppError>;
+    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, stage_name: &String, config: &Value, alert_type: AlertType) -> Result<(), AppError>;
 }
 
 

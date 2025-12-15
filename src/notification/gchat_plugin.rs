@@ -55,9 +55,9 @@ impl NotificationPlugin for GchatPlugin {
         Ok(())
     }
 
-    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, stage_name: &String, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
         let webhook_url = config["webhook_url"].as_str().unwrap(); // Safe due to validation
-        let message = render_message(alert_type, job_config, job_run,"");
+        let message = render_message(alert_type, job_config, job_run, stage_name);
 
         println!("sending to url: {}", webhook_url);
 

@@ -1,6 +1,9 @@
 use std::cmp::PartialEq;
 use axum::extract::{Path, State};
+use axum::Json;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use validator::Validate;
 use crate::{SharedState};
 use crate::core::job_run_matching::get_status;
 use crate::core::job_stage_validations::check;
@@ -11,7 +14,7 @@ use crate::db::run_repository::{create_new_job_run, get_job_run_by_id, get_lates
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
-use crate::notification::core::send_failed;
+use crate::notification::core::{send_failed};
 use crate::time_utils::{change_timezone, change_to_utc, get_utc_now};
 
 pub async fn get_run_by_id_handler(
@@ -45,7 +48,7 @@ pub async fn job_run_trigger_handler(
     // let job_config = job_config_option.unwrap();
 
     let new_job_run = NewJobRun {
-        application: app_name,
+        app_name: app_name,
         job_name,
         triggered_at: get_utc_now(),
         status: JobRunStatus::InProgress,
@@ -98,26 +101,34 @@ async fn _job_run_complete_handler(
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct FailureRequest {
+    message: String,
+}
+
 pub async fn job_run_failed_with_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
+    Json(failure_request): Json<FailureRequest>,
 ) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_failed_handler(State(state), Path((app_name, job_name, Some(job_run_id), stage_name))).await
+    _job_run_failed_handler(state, (app_name, job_name, Some(job_run_id), stage_name), failure_request).await
 }
 pub async fn job_run_failed_without_run_id_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
+    Json(failure_request): Json<FailureRequest>,
 ) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_failed_handler(State(state), Path((app_name, job_name, None, stage_name))).await
+    _job_run_failed_handler(state, (app_name, job_name, None, stage_name), failure_request).await
 }
 async fn _job_run_failed_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
+    state: SharedState,
+    (app_name, job_name, job_run_id_option, stage_name): (String, String, Option<Uuid>, String),
+    failure_request: FailureRequest,
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
     let result = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
-    if let Ok((_job_config, job_run)) = result {
-        send_failed(&state.dispatcher, &app_name, &job_name, &job_run, &stage_name, "Job failed", vec!["slack_webhook".to_string()]).await;
+    if let Ok((job_config, job_run)) = result {
+        send_failed(&state.dispatcher, &job_config, &job_run, &stage_name, &failure_request.message, &job_config.channel_ids).await;
         Ok(AppResponse::success_one("job-run", job_run))
     } else {
         Err(result.err().unwrap())

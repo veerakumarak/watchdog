@@ -66,7 +66,7 @@ impl NotificationPlugin for EmailPlugin {
         Ok(())
     }
 
-    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, stage_name: &String, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
         let _config: Config = serde_json::from_value(config.clone()).map_err(|e| {
             AppError::BadRequest(format!("invalid config provided {}", e))
         })?;
@@ -130,16 +130,3 @@ fn render_message(alert_type: AlertType, job_config: &JobConfig, job_run: &JobRu
         ),
     }
 }
-
-/*
-send_failed,
-send_error,
-send_timeout
-
-only variable is vec<channel_names>
-
-each plugin impl: use the template to render the message
-
-each channel use the message and to address to send it
-
- */

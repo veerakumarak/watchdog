@@ -48,7 +48,7 @@ diesel::table! {
 
     job_runs (id) {
         id -> Uuid,
-        application -> Varchar,
+        app_name -> Varchar,
         job_name -> Varchar,
         triggered_at -> Timestamptz,
         status -> JobRunStatus,

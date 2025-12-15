@@ -32,7 +32,7 @@ impl NotificationDispatcher {
         }
     }
 
-    pub async fn dispatch2(&self, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str, alert_type: AlertType) {
+    pub async fn dispatch2(&self, job_config: &JobConfig, job_run: &JobRun, stage_name: &str, channel_ids_str: &str, message_opt: Option<String>, alert_type: AlertType) {
         let mut join_handles = vec![];
 
         let mut conn = self.db.get().await.unwrap();
@@ -61,7 +61,7 @@ impl NotificationDispatcher {
                     // 3. Spawn an async task for execution so channels don't block each other.
                     let handle = tokio::spawn(async move {
                         info!("-> Sending via channel2: '{}'", channel_name);
-                        match plugin_ref.send2(&job_config_clone, &job_run_clone, &config_clone, alert_type_clone).await {
+                        match plugin_ref.send2(&job_config_clone, &job_run_clone, &stage_name_clone, &config_clone, alert_type_clone).await {
                             Ok(_) => info!("<- Successfully sent via '{}'", channel_name),
                             Err(e) => error!("<- Failed to send via '{}': {}", channel_name, e),
                         }

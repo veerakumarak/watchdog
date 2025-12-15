@@ -3,6 +3,7 @@ use std::ops::Add;
 use chrono::{DateTime, Duration, Utc};
 use chrono_tz::Tz;
 use tracing::{debug, warn};
+use crate::cron_utils::get_min;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus};
 use crate::models::JobRunStageStatus::Missed;
 
@@ -20,7 +21,7 @@ pub fn detect_time_outs(
     // Java used Comparator.comparingInt(JobStageUtils::getMin)
     // Assuming this sorts by the 'start' offset, putting None last (or first depending on requirement).
     // Here we assume older start times come first.
-    sorted_job_stages.sort_by_key(|stage| stage.start.unwrap_or(u64::MAX));
+    sorted_job_stages.sort_by_key(|stage| get_min(stage.start.clone(), stage.complete.clone()).unwrap());
 
     sorted_job_stages
         .into_iter()

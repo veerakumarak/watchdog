@@ -57,7 +57,7 @@ pub enum JobRunStatus {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct JobRun {
     pub id: Uuid,
-    pub application: String,
+    pub app_name: String,
     pub job_name: String,
     pub triggered_at: DateTime<Utc>,
     pub status: JobRunStatus,
@@ -86,7 +86,7 @@ pub struct JobRunStage {
 #[diesel(table_name = job_runs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewJobRun {
-    pub application: String,
+    pub app_name: String,
     pub job_name: String,
     pub triggered_at: DateTime<Utc>,
     pub status: JobRunStatus,

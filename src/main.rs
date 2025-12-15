@@ -66,7 +66,7 @@ async fn main() {
     // tokio::spawn(scheduler(&get_connection_pool(&config.postgres_url).await.unwrap()));
     let scheduler_pool = pool.clone();
     tokio::spawn(async move {
-        scheduler(&scheduler_pool, &dispatcher).await
+        scheduler(&scheduler_pool, &dispatcher, &config).await
     });
 
     let web_build_path = "./web/dist";
