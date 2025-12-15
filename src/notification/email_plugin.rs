@@ -5,12 +5,11 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use serde::Deserialize;
 use serde_json::Value;
-use tracing::info;
 use validator::Validate;
 use crate::errors::AppError;
-use crate::models::{JobConfig, JobRun, ProviderType};
+use crate::models::{ProviderType};
 use crate::models::ProviderType::EmailSmtp;
-use crate::notification::core::{AlertEvent, AlertType};
+use crate::notification::core::{AlertType};
 use crate::notification::plugin_registry::NotificationPlugin;
 
 pub struct EmailPlugin;
@@ -52,21 +51,21 @@ impl NotificationPlugin for EmailPlugin {
         }
     }
 
-    async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError> {
-        let host = config["smtp_host"].as_str().unwrap_or("localhost");
-        let to = config["to_addresses"].as_array().unwrap();
-        info!(
-            "[Email Plugin] Connecting to SMTP server at {}. Sending email to {:?}.\n\tSubject: Alert {}\n\tBody: {}",
-            host, to, alert.id, alert.message
-        );
-
-
-        // Simulate network I/O delay
-        tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-        Ok(())
-    }
-
-    async fn send2(&self, job_config: &JobConfig, job_run: &JobRun, stage_name: &String, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+    // async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError> {
+    //     let host = config["smtp_host"].as_str().unwrap_or("localhost");
+    //     let to = config["to_addresses"].as_array().unwrap();
+    //     info!(
+    //         "[Email Plugin] Connecting to SMTP server at {}. Sending email to {:?}.\n\tSubject: Alert {}\n\tBody: {}",
+    //         host, to, alert.id, alert.message
+    //     );
+    //
+    //
+    //     // Simulate network I/O delay
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
+    //     Ok(())
+    // }
+    //
+    async fn send(&self, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage_name: &String, message_opt: Option<String>, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
         let _config: Config = serde_json::from_value(config.clone()).map_err(|e| {
             AppError::BadRequest(format!("invalid config provided {}", e))
         })?;
@@ -78,7 +77,7 @@ impl NotificationPlugin for EmailPlugin {
         // );
 
 
-        let (subject, body) = render_message(alert_type, job_config, job_run,"");
+        let (subject, body) = render_message(alert_type, app_name, job_name, run_id_opt,"");
 
         let email = Message::builder()
             .from("watchdog@nielse.com".parse().unwrap())
@@ -105,28 +104,33 @@ impl NotificationPlugin for EmailPlugin {
     }
 }
 
-fn render_message(alert_type: AlertType, job_config: &JobConfig, job_run: &JobRun, stage: &str) -> (String, String) {
+fn render_message(alert_type: AlertType, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage: &str) -> (String, String) {
     match alert_type {
-        // AlertType::Error => (
-        //     "[{app_name}]: [{job_name}] [{stage}]: Runtime Error Occurred",
-        //     "Watchdog Error Alert\nApplication: {application}\nJob Name: {dag} \nStage Name: {stage}\nMessage: {message}"
-        // ),
-        AlertType::Timeout => (
-            "[{app_name}]: [{job_name}] Job Timeout Alert from Watchdog".replace("{app_name}", &job_config.app_name).replace("{job_name}", &job_config.job_name),
-            "Airflow Stage Timeout Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\nRun Id: {run_id}"
-                .replace("{app_name}", &job_config.app_name)
-                .replace("{job_name}", &job_config.job_name)
+        AlertType::Error => (
+            "[{app_name}]: [{job_name}] Job Timeout Alert from Watchdog".replace("{app_name}", app_name).replace("{job_name}", job_name),
+            // "[{app_name}]: [{job_name}] [{stage}]: Runtime Error Occurred",
+            // "Watchdog Error Alert\nApplication: {application}\nJob Name: {dag} \nStage Name: {stage}\nMessage: {message}"
+            "Airflow Stage Failed Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\nEvent Id: {event}\nMessage: {message}"
+                .replace("{app_name}", app_name)
+                .replace("{job_name}", job_name)
                 .replace("{stage}", stage)
-                .replace("{run_id}", &job_run.id.to_string())
-
+                .replace("{run_id}", &run_id_opt.unwrap_or("NA".to_string()))
+        ),
+        AlertType::Timeout => (
+            "[{app_name}]: [{job_name}] Job Timeout Alert from Watchdog".replace("{app_name}", app_name).replace("{job_name}", job_name),
+            "Airflow Stage Timeout Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\nRun Id: {run_id}"
+                .replace("{app_name}", app_name)
+                .replace("{job_name}", job_name)
+                .replace("{stage}", stage)
+                .replace("{run_id}", &run_id_opt.unwrap_or("NA".to_string()))
         ),
         AlertType::Failed => (
-            "[{app_name}]: [{job_name}] Job Failed Alert from Watchdog".replace("{app_name}", &job_config.app_name).replace("{job_name}", &job_config.job_name),
+            "[{app_name}]: [{job_name}] Job Failed Alert from Watchdog".replace("{app_name}", app_name).replace("{job_name}", job_name),
             "Airflow Stage Failed Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\nEvent Id: {event}\nMessage: {message}"
-                .replace("{app_name}", &job_config.app_name)
-                .replace("{job_name}", &job_config.job_name)
+                .replace("{app_name}", app_name)
+                .replace("{job_name}", job_name)
                 .replace("{stage}", stage)
-                .replace("{run_id}", &job_run.id.to_string())
+                .replace("{run_id}", &run_id_opt.unwrap_or("NA".to_string()))
         ),
     }
 }

@@ -2,6 +2,7 @@ use std::cmp::PartialEq;
 use axum::extract::{Path, State};
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use uuid::Uuid;
 use validator::Validate;
 use crate::{SharedState};
@@ -14,7 +15,8 @@ use crate::db::run_repository::{create_new_job_run, get_job_run_by_id, get_lates
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
-use crate::notification::core::{send_failed};
+use crate::notification::core::{send_error, send_failed};
+use crate::notification::dispatcher::NotificationDispatcher;
 use crate::time_utils::{change_timezone, change_to_utc, get_utc_now};
 
 pub async fn get_run_by_id_handler(
@@ -76,7 +78,7 @@ async fn _job_run_start_handler(
     Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let (_job_config, job_run) = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
+    let (_job_config, job_run) = job_run_update_stage(&state.dispatcher, &mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
@@ -97,7 +99,7 @@ async fn _job_run_complete_handler(
     Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let (_job_config, job_run) = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
+    let (_job_config, job_run) = job_run_update_stage(&state.dispatcher, &mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
@@ -126,16 +128,23 @@ async fn _job_run_failed_handler(
     failure_request: FailureRequest,
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let result = job_run_update_stage(&mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
+    let result = job_run_update_stage(&state.dispatcher, &mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
     if let Ok((job_config, job_run)) = result {
-        send_failed(&state.dispatcher, &job_config, &job_run, &stage_name, &failure_request.message, &job_config.channel_ids).await;
+        let res = send_failed(&state.dispatcher, &job_config, &job_run, &stage_name, &failure_request.message, &job_config.channel_ids).await;
+        if let Err(err) = res {
+            error!("failed to send failed notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
+            let res = send_error(&state.dispatcher, &app_name.to_string(), &job_name.to_string(), job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), "default").await;
+            if let Err(e) = res {
+                error!("failed to send error notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), e.to_string());
+            }
+        }
         Ok(AppResponse::success_one("job-run", job_run))
     } else {
         Err(result.err().unwrap())
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum JobRunStageType {
     Start,
     Complete,
@@ -143,6 +152,29 @@ pub enum JobRunStageType {
 }
 
 async fn job_run_update_stage(
+    dispatcher: &NotificationDispatcher,
+    conn: &mut DbConnection<'_>,
+    app_name: &str,
+    job_name: &str,
+    job_run_id_option: Option<Uuid>,
+    stage_name: &String,
+    stage_type: JobRunStageType,
+    stage_status: JobRunStageStatus
+) -> Result<(JobConfig, JobRun), AppError> {
+    let result = _job_run_update_stage(conn, app_name, job_name, job_run_id_option, stage_name, stage_type.clone(), stage_status).await;
+    if let Err(err) = result {
+        // ToDo configure default error channels
+        let res = send_error(dispatcher, &app_name.to_string(), &job_name.to_string(), job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), "default").await;
+        if let Err(err) = res {
+            error!("failed to send error notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
+        }
+        Err(err)
+    } else {
+        result
+    }
+}
+
+async fn _job_run_update_stage(
     conn: &mut DbConnection<'_>,
     app_name: &str,
     job_name: &str,

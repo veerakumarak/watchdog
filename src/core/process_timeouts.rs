@@ -162,7 +162,7 @@ async fn update_event_stages(
 
         for event_stage in job_run.stages.iter() {
             info!("in event timeout");
-            send_timeout(&notification_dispatcher, &job_config, &job_run, &event_stage.name, &job_config.channel_ids).await
+            let _ = send_timeout(&notification_dispatcher, &job_config, &job_run, &event_stage.name).await;
         }
     }
 }
