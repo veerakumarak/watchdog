@@ -12,10 +12,10 @@ use crate::db::connection::{DbConnection, PgPool};
 use crate::db::run_repository::{get_all_pending_job_runs, insert_run, save_run};
 use crate::errors::AppError;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, NewJobRun};
-use crate::cron_utils::{get_job_start_time, in_between};
+use crate::cron_utils::{get_cron_start_time, get_job_start_time, get_previous_execution_time, in_between};
 use crate::notification::core::{send_timeout};
 use crate::notification::dispatcher::NotificationDispatcher;
-use crate::time_utils::{change_to_utc, get_tz};
+use crate::time_utils::{change_to_utc, get_tz, get_utc_now};
 
 pub async fn check_all_timeouts(
     pool: &PgPool,
@@ -32,8 +32,8 @@ pub async fn check_all_timeouts(
         .map(|job| (format!("{}-{}", &job.app_name, &job.job_name), job.clone()))
         .collect();
 
-    let utc_now = Utc::now();
-    // ToDo - add grace time to max_stage_duration_hours
+    let utc_now = get_utc_now();
+
     let time_boundary = utc_now.checked_sub_signed(Duration::hours(config.max_stage_duration_hours));
     let pending_events: Vec<JobRun> = get_all_pending_job_runs(&mut conn, time_boundary.unwrap()).await?;
     let latest_job_runs_by_name: HashMap<String, JobRun> = get_valid_events(&pending_events);
@@ -42,7 +42,7 @@ pub async fn check_all_timeouts(
     zoned_current_times.insert(UTC, utc_now.with_timezone(&UTC));
 
     info!("utc time now: {}", utc_now);
-    process_scheduled_job_timeouts(&mut conn, &all_enabled_configs, &latest_job_runs_by_name, &mut zoned_current_times, &utc_now, notification_dispatcher).await;
+    process_scheduled_job_timeouts(&mut conn, &all_enabled_configs, &latest_job_runs_by_name, &mut zoned_current_times, &utc_now, notification_dispatcher, config).await;
     process_manual_job_timeouts(&mut conn, pending_events, &jobs_by_name, &utc_now, notification_dispatcher).await;
 
     Ok(())
@@ -69,22 +69,21 @@ async fn process_scheduled_job_timeouts(
     zoned_current_times: &mut HashMap<Tz, DateTime<Tz>>,
     utc_now: &DateTime<Utc>,
     notification_dispatcher: &NotificationDispatcher,
+    config: &Config
 ) {
     for job_config in all_enabled_jobs.iter().filter(|job| job.schedule.is_some()) {
         if let Some(zone) = &job_config.zone_id && let Ok(tz) = get_tz(&zone) {
             let zoned_time_now = zoned_current_times
                 .entry(tz)
                 .or_insert_with(|| {utc_now.with_timezone(&tz)});
-            match in_between(job_config, *zoned_time_now) {
+            match in_between(job_config, *zoned_time_now, config.scheduler_fixed_delay_seconds) {
                 Err(e) => error!("Time delta calculation failed for {}: {:?}", job_config.job_name, e),
                 Ok(true) => {
                     if let Ok(job_start_time) = get_job_start_time(job_config, zoned_time_now) {
                         let job_config_key = format!("{}-{}", job_config.app_name, job_config.job_name);
                         let job_run_option = latest_job_runs_by_name.get(&job_config_key).cloned();
-                        // If event is null OR event.createdAt is before jobStartTime.minusMinutes(1)
                         let mut job_run: JobRun;
-                        // ToDo add grace time
-                        if job_run_option.is_none() || job_run_option.as_ref().unwrap().created_at < job_start_time.sub(Duration::seconds(10)) {
+                        if job_run_option.is_none() || job_run_option.as_ref().unwrap().created_at < job_start_time.sub(Duration::seconds(config.grace_time_seconds)) {
                             let new_job = NewJobRun {
                                 app_name: job_config.app_name.clone(),
                                 job_name: job_config.job_name.clone(),
@@ -151,7 +150,7 @@ async fn update_event_stages(
     error!("event_stages: {:?}", event_stages);
 
     if !event_stages.is_empty() {
-        job_run.stages = diesel_json::Json(combine(&job_run.stages, event_stages));
+        job_run.stages = diesel_json::Json(combine(&job_run.stages, event_stages.clone()));
         job_run.status = JobRunStatus::Failed;
         job_run.updated_at = change_to_utc(&zoned_time_now).unwrap();
 
@@ -160,8 +159,8 @@ async fn update_event_stages(
             return;
         }
 
-        for event_stage in job_run.stages.iter() {
-            info!("in event timeout");
+        for event_stage in event_stages.iter() {
+            info!("in event timeout: {:?}", event_stage);
             let _ = send_timeout(&notification_dispatcher, &job_config, &job_run, &event_stage.name).await;
         }
     }
@@ -190,3 +189,23 @@ fn combine(stages1: &Vec<JobRunStage>, stages2: Vec<JobRunStage>) -> Vec<JobRunS
 //     error!("Error checking timeout for job: {}. Reason: {}", &job_config.job_name, f);
 //     send_error(&notification_dispatcher, &job_config.application, &job_config.job_name, f.to_string().as_ref(), vec!["slack_webhook".to_string()]).await;
 // }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*; // Import functions from the outer scope
+
+    #[test]
+    fn test_my_specific_method() {
+        let now = get_utc_now();
+        println!("now is: {:?}", now);
+
+        let res = get_previous_execution_time("* 0/15 * * * *", &now).unwrap();
+
+        println!("result: {:?}", res);
+
+        let res2 = get_previous_execution_time("0 0/15 * * * *", &now).unwrap();
+        println!("result: {:?}", res2);
+
+    }
+}

@@ -15,8 +15,7 @@ use crate::db::run_repository::{create_new_job_run, get_job_run_by_id, get_lates
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
-use crate::notification::core::{send_error, send_failed};
-use crate::notification::dispatcher::NotificationDispatcher;
+use crate::notification::core::{_handle_error, send_failed};
 use crate::time_utils::{change_timezone, change_to_utc, get_utc_now};
 
 pub async fn get_run_by_id_handler(
@@ -50,7 +49,7 @@ pub async fn job_run_trigger_handler(
     // let job_config = job_config_option.unwrap();
 
     let new_job_run = NewJobRun {
-        app_name: app_name,
+        app_name,
         job_name,
         triggered_at: get_utc_now(),
         status: JobRunStatus::InProgress,
@@ -158,22 +157,15 @@ async fn job_run_update_stage(
     stage_type: JobRunStageType,
     stage_status: JobRunStageStatus
 ) -> Result<(JobConfig, JobRun), AppError> {
-    let result = _job_run_update_stage(conn, app_name.clone(), job_name, job_run_id_option, stage_name, stage_type.clone(), stage_status).await;
+    let result = _job_run_update_stage(conn, app_name, job_name, job_run_id_option, stage_name, stage_type.clone(), stage_status).await;
     if let Err(err) = result {
+        error!("failed to update stage: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
         _handle_error(&state.dispatcher, &app_name.to_string(), &job_name.to_string(), job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
         Err(err)
     } else {
         result
     }
 }
-
-async fn _handle_error(dispatcher: &NotificationDispatcher, app_name: &String, job_name: &String, job_run_id_opt: Option<String>, stage_name: &str, message: &String, channel_ids_str: &str) {
-    let res = send_error(dispatcher, app_name, job_name, job_run_id_opt.clone(), &stage_name, message, channel_ids_str).await;
-    if let Err(e) = res {
-        error!("failed to send error notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_opt.unwrap_or_else(|| "None".to_string()), e.to_string());
-    }
-}
-
 async fn _job_run_update_stage(
     conn: &mut DbConnection<'_>,
     app_name: &str,

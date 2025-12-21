@@ -43,7 +43,6 @@ pub fn detect_time_outs(
             // Check Start Timeout
             if let Some(start_offset_secs) = job_stage.start {
                 if occurring_stage.start_status.is_none() {
-                    // chrono::Duration is used for time arithmetic
                     let deadline = job_start_time.add(Duration::seconds(start_offset_secs as i64));
                     if deadline < *current_time {
                         debug!("Detected start timeout for stage: {}", job_stage.name);

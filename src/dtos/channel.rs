@@ -4,7 +4,7 @@ use serde_json::Value;
 use validator::Validate;
 use crate::models::{Channel, ProviderType};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ChannelResponseDto {
     pub id: String,
     pub name: String,

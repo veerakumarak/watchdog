@@ -1,10 +1,10 @@
 use crate::validations::validate_email_list;
 use async_trait::async_trait;
-use lettre::message::{Mailbox, header::ContentType};
-use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
+use lettre::transport::smtp::authentication::Credentials;
 use serde::Deserialize;
 use serde_json::Value;
+use tracing::info;
 use validator::Validate;
 use crate::errors::AppError;
 use crate::models::{ProviderType};
@@ -17,12 +17,16 @@ pub struct EmailPlugin;
 #[derive(Debug, Validate, Deserialize)]
 struct Config {
     #[validate(length(min = 4, message = "host must be at least 4 characters long"))]
-    pub smtp_host: String,
-    pub smtp_port: u16,
+    pub host: String,
+    pub port: u16,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub ignore_tls_verification: bool,
     #[validate(length(min = 1, message = "vec must contain at least one address"))]
     #[validate(custom(function = "validate_email_list"))]
     pub to_addresses: Vec<String>,
-    // pub from_address: String,
+    #[validate(email)]
+    pub from_address: String,
     // pub subject: String,
 }
 #[async_trait]
@@ -39,64 +43,29 @@ impl NotificationPlugin for EmailPlugin {
 
         print!("{:?}", config);
 
-        if config.get("smtp_host").is_some()
-            && config.get("smtp_port").is_some()
-            && config.get("to_addresses").is_some_and(|v| v.is_array())
-        {
-            Ok(())
-        } else {
-            Err(AppError::BadRequest(
-                "Missing smtp_host, smtp_port, or to_addresses array".into(),
-            ))
-        }
+        Ok(())
     }
 
-    // async fn send(&self, alert: &AlertEvent, config: &Value) -> Result<(), AppError> {
-    //     let host = config["smtp_host"].as_str().unwrap_or("localhost");
-    //     let to = config["to_addresses"].as_array().unwrap();
-    //     info!(
-    //         "[Email Plugin] Connecting to SMTP server at {}. Sending email to {:?}.\n\tSubject: Alert {}\n\tBody: {}",
-    //         host, to, alert.id, alert.message
-    //     );
-    //
-    //
-    //     // Simulate network I/O delay
-    //     tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-    //     Ok(())
-    // }
-    //
+
     async fn send(&self, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage_name: &String, message_opt: Option<String>, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
         let _config: Config = serde_json::from_value(config.clone()).map_err(|e| {
             AppError::BadRequest(format!("invalid config provided {}", e))
         })?;
-        let host = config["smtp_host"].as_str().unwrap_or("localhost");
-        let to = config["to_addresses"].as_array().unwrap();
-        // info!(
-        //     "[Email Plugin] Connecting to SMTP server at {}. Sending email to {:?}.\n\tSubject: Alert {}\n\tBody: {}",
-        //     host, to, alert.id, alert.message
-        // );
 
+        let mailer = build_transport(&_config)
+            .map_err(|e| AppError::InternalError(format!("unable to connect to email server {}", e)))?;
 
-        let (subject, body) = render_message(alert_type, app_name, job_name, run_id_opt,"");
+        let (subject, body) = render_message(alert_type, app_name, job_name, run_id_opt,stage_name, message_opt);
 
         let email = Message::builder()
-            .from("watchdog@nielse.com".parse().unwrap())
-            .to("kotiveerakumar.ankam@nielsen.com".parse().unwrap())
+            .from(_config.from_address.parse().unwrap())
+            .to(_config.to_addresses.join(",").parse().unwrap())
             .subject(subject)
             .body(body)
             .unwrap();
 
-        let creds = Credentials::new("username".to_string(), "password".to_string());
-
-        // Open a remote connection to gmail
-        let mailer = SmtpTransport::relay("smtp.gmail.com")
-            .unwrap()
-            .credentials(creds)
-            .build();
-
-        // Send the email
         match mailer.send(&email) {
-            Ok(_) => println!("Email sent successfully!"),
+            Ok(_) => info!("Email sent successfully!"),
             Err(e) => panic!("Could not send email: {:?}", e),
         }
 
@@ -104,20 +73,46 @@ impl NotificationPlugin for EmailPlugin {
     }
 }
 
-fn render_message(alert_type: AlertType, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage: &str) -> (String, String) {
+fn build_transport(_config: &Config) -> Result<SmtpTransport, lettre::transport::smtp::Error> {
+    // 1. Choose the builder strategy based on the flag
+    let mut builder = if _config.ignore_tls_verification {
+        // "Dangerous" mode: Allows port 25 plain text or self-signed certs
+        SmtpTransport::builder_dangerous(&_config.host)
+    } else {
+        // "Relay" mode: Enforces valid public SSL certificates (Gmail, AWS, etc.)
+        // Note: .relay() validates the host string immediately, so it returns a Result
+        SmtpTransport::relay(_config.host.as_str())?
+    };
+
+    // 2. Set the port explicitly
+    builder = builder.port(_config.port);
+
+    // 3. Conditionally add credentials
+    if let (Some(user), Some(pass)) = (&_config.username, &_config.password) {
+        let creds = Credentials::new(user.clone(), pass.clone());
+        builder = builder.credentials(creds);
+    }
+
+    // 4. Build and return the final transport
+    Ok(builder.build())
+}
+
+fn render_message(alert_type: AlertType, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage: &str, message_opt: Option<String>) -> (String, String) {
     match alert_type {
         AlertType::Error => (
-            "[{app_name}]: [{job_name}] Job Timeout Alert from Watchdog".replace("{app_name}", app_name).replace("{job_name}", job_name),
-            // "[{app_name}]: [{job_name}] [{stage}]: Runtime Error Occurred",
-            // "Watchdog Error Alert\nApplication: {application}\nJob Name: {dag} \nStage Name: {stage}\nMessage: {message}"
-            "Airflow Stage Failed Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\nEvent Id: {event}\nMessage: {message}"
+            "[watchdog]: [{app_name}] [{job_name}] [{stage}]: Runtime Error Occurred"
+                .replace("{app_name}", app_name)
+                .replace("{job_name}", job_name)
+                .replace("{stage}", stage),
+            "Watchdog Error Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\n*Run Id*: {run_id}\nMessage: {message}"
                 .replace("{app_name}", app_name)
                 .replace("{job_name}", job_name)
                 .replace("{stage}", stage)
                 .replace("{run_id}", &run_id_opt.unwrap_or("NA".to_string()))
+                .replace("{message}", &message_opt.unwrap_or("".to_string()))
         ),
         AlertType::Timeout => (
-            "[{app_name}]: [{job_name}] Job Timeout Alert from Watchdog".replace("{app_name}", app_name).replace("{job_name}", job_name),
+            "[{app_name}]: [{job_name}] Dag Timeout Alert from Watchdog".replace("{app_name}", app_name).replace("{job_name}", job_name),
             "Airflow Stage Timeout Alert\nApplication: {app_name}\nJob Name: {job_name} \nStage Name: {stage}\nRun Id: {run_id}"
                 .replace("{app_name}", app_name)
                 .replace("{job_name}", job_name)
@@ -131,6 +126,7 @@ fn render_message(alert_type: AlertType, app_name: &String, job_name: &String, r
                 .replace("{job_name}", job_name)
                 .replace("{stage}", stage)
                 .replace("{run_id}", &run_id_opt.unwrap_or("NA".to_string()))
+                .replace("{message}", &message_opt.unwrap_or("".to_string()))
         ),
     }
 }

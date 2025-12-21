@@ -25,13 +25,6 @@ impl NotificationPlugin for GchatPlugin {
     }
 
     fn validate_config(&self, config: &Value) -> Result<(), AppError> {
-        // match config.get("webhook_url").and_then(|v| v.as_str()) {
-        //     Some(url) if url.starts_with("https://hooks.slack.com") => Ok(()),
-        //     _ => Err(AppError::BadRequest(
-        //         "Missing or invalid 'webhook_url'. Must start with slack hooks URL.".into(),
-        //     )),
-        // }
-
         let _config: Config = serde_json::from_value(config.clone()).map_err(|e| {
             AppError::BadRequest(format!("invalid config provided {}", e))
         })?;

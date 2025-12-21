@@ -5,6 +5,7 @@ use chrono_tz::Tz;
 use cron::Schedule;
 use crate::errors::AppError;
 use std::str::FromStr;
+use tracing::info;
 
 pub fn get_min(a: Option<u64>, b: Option<u64>) -> Option<u64> {
     match (a, b) {
@@ -58,13 +59,14 @@ pub fn get_job_complete_time(job: &JobConfig, current_time: DateTime<Tz>) -> Res
     Ok(start_time.add(Duration::seconds(max_duration as i64)))
 }
 
-pub fn in_between(job: &JobConfig, current_time: DateTime<Tz>) -> Result<bool, AppError> {
+pub fn in_between(job: &JobConfig, current_time: DateTime<Tz>, scheduler_fixed_delay_seconds: u64) -> Result<bool, AppError> {
     let job_start_time = get_job_start_time(job, &current_time)?;
     let job_complete_time = get_job_complete_time(job, current_time)?;
 
-    let buffer_complete_time = job_complete_time.add(Duration::minutes(2));
+    let buffer_complete_time = job_complete_time.add(Duration::seconds((scheduler_fixed_delay_seconds * 4) as i64));
+    info!("job start time: {}, job complete time: {}, buffered_time: {}, current_time: {}", job_start_time, job_complete_time, buffer_complete_time, current_time);
 
-    let is_after_start = current_time > job_start_time;
+    let is_after_start = current_time >= job_start_time;
     let is_before_complete = current_time < buffer_complete_time;
 
     Ok(is_after_start && is_before_complete)
@@ -92,10 +94,27 @@ pub fn get_previous_execution_time<TZ>(
     // let last_execution_iter = schedule.before_owned(from_utc);
     // let last_execution: Option<DateTime<Utc>> = last_execution_iter.next();
     //
+
+    // 1. Pick a safe "lookback" window (e.g., 2 hours, or 1 interval + buffer)
+    // let lookback_start = *from_date_time - chrono::Duration::hours(1);
+
+    // 2. Iterate forward from that past point
+    // let last_execution2 = schedule
+    //     .after(&lookback_start)
+    //     .take_while(|dt| dt < from_date_time) // Stop when we hit the current time
+    //     .last(); // Take the very last one we found
+
+    // match last_execution2 {
+    //     Some(dt) => Ok(dt), // This will be 20:00:59 (or 20:00:58 depending on strictly less)
+    //     None => Err(AppError::InternalError("No previous execution found in window".to_string())),
+    // }
+
     let last_execution: Option<DateTime<TZ>> = schedule
         .after(&from_date_time)
         .rev() // Reverse the iterator to get past times
         .next(); // Take the first one (the most recent past time)
+
+    info!("last_execution: {:?}", last_execution);
 
     // 3. Handle the result and error (if lastExecution.isEmpty() throw new InternalException)
     match last_execution {

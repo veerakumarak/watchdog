@@ -9,18 +9,15 @@ pub async fn scheduler(db: &PgPool, notification_dispatcher: &NotificationDispat
 
     info!("Starting scheduler. Waiting for initial delay...");
 
-    // Initial Delay (2 seconds)
-    tokio::time::sleep(Duration::from_millis(config.scheduler_initial_delay_ms)).await;
+    tokio::time::sleep(Duration::from_secs(config.scheduler_initial_delay_seconds)).await;
+
     info!("Initial delay complete. Starting scheduled task loop.");
 
-    // Scheduled Task Loop
     loop {
-        // Run the task
         check_all_timeouts(db, notification_dispatcher, config).await.expect("scheduler died");
 
-        info!("Task completed. Waiting for fixed delay of {}ms...", config.scheduler_fixed_delay_ms);
+        info!("Task completed. Waiting for fixed delay of {}secs...", config.scheduler_fixed_delay_seconds);
 
-        // Fixed Delay (30 seconds)
-        tokio::time::sleep(Duration::from_millis(config.scheduler_fixed_delay_ms)).await;
+        tokio::time::sleep(Duration::from_secs(config.scheduler_fixed_delay_seconds)).await;
     }
 }

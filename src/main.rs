@@ -6,12 +6,12 @@ mod config;
 mod db;
 mod schema;
 mod core;
-mod dtos;
 mod cron_utils;
 mod scheduler;
 mod time_utils;
 mod notification;
 mod validations;
+mod dtos;
 
 use axum::routing::{get};
 use axum::{routing::post, Router};

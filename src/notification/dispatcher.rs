@@ -62,10 +62,10 @@ impl NotificationDispatcher {
 
                     // 3. Spawn an async task for execution so channels don't block each other.
                     let handle = tokio::spawn(async move {
-                        info!("-> Sending via channel2: '{}'", channel_name);
+                        // info!("-> Sending via channel2: '{}'", channel_name);
                         match plugin_ref.send(&app_name_clone, &job_name_clone, job_run_opt_clone, &stage_name_clone, message_opt_clone, &config_clone, alert_type_clone).await {
-                            Ok(_) => info!("<- Successfully sent via '{}'", channel_name),
-                            Err(e) => error!("<- Failed to send via '{}': {}", channel_name, e),
+                            Ok(_) => info!("Successfully sent via '{}'", channel_name),
+                            Err(e) => error!("Failed to send via '{}': {}", channel_name, e),
                         }
                     });
                     join_handles.push(handle);
@@ -85,7 +85,7 @@ impl NotificationDispatcher {
         for handle in join_handles {
             let _ = handle.await;
         }
-        info!("--- Dispatch Complete ---");
+        // info!("--- Dispatch Complete ---");
         Ok(())
     }
 

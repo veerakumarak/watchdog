@@ -5,7 +5,7 @@ use tracing::info;
 use validator::Validate;
 use crate::{SharedState};
 use crate::db::channel_repository::{get_all_channels, get_channel_by_id, insert_channel, save_channel};
-use crate::dtos::{ChannelCreateRequest, ChannelResponseDto, ChannelUpdateRequest};
+use crate::dtos::channel::{ChannelCreateRequest, ChannelResponseDto, ChannelUpdateRequest};
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
 use crate::models::{NewChannel, ProviderType};
