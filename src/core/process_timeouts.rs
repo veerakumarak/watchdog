@@ -12,7 +12,7 @@ use crate::db::connection::{DbConnection, PgPool};
 use crate::db::run_repository::{get_all_pending_job_runs, insert_run, save_run};
 use crate::errors::AppError;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, NewJobRun};
-use crate::cron_utils::{get_cron_start_time, get_job_start_time, get_previous_execution_time, in_between};
+use crate::cron_utils::{get_job_start_time, in_between};
 use crate::notification::core::{send_timeout};
 use crate::notification::dispatcher::NotificationDispatcher;
 use crate::time_utils::{change_to_utc, get_tz, get_utc_now};
@@ -179,33 +179,4 @@ fn combine(stages1: &Vec<JobRunStage>, stages2: Vec<JobRunStage>) -> Vec<JobRunS
     }
 
     combined_map.values().cloned().collect()
-}
-
-// async fn handle_failure(
-//     notification_dispatcher: &NotificationDispatcher,
-//     job_config: &JobConfig,
-//     f: &AppError
-// ) {
-//     error!("Error checking timeout for job: {}. Reason: {}", &job_config.job_name, f);
-//     send_error(&notification_dispatcher, &job_config.application, &job_config.job_name, f.to_string().as_ref(), vec!["slack_webhook".to_string()]).await;
-// }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*; // Import functions from the outer scope
-
-    #[test]
-    fn test_my_specific_method() {
-        let now = get_utc_now();
-        println!("now is: {:?}", now);
-
-        let res = get_previous_execution_time("* 0/15 * * * *", &now).unwrap();
-
-        println!("result: {:?}", res);
-
-        let res2 = get_previous_execution_time("0 0/15 * * * *", &now).unwrap();
-        println!("result: {:?}", res2);
-
-    }
 }

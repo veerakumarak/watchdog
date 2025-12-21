@@ -1,10 +1,10 @@
 use std::cmp::PartialEq;
 use axum::extract::{Path, State};
 use axum::Json;
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize};
 use tracing::error;
 use uuid::Uuid;
-use validator::Validate;
 use crate::{SharedState};
 use crate::core::job_run_matching::get_status;
 use crate::core::job_stage_validations::check;
@@ -33,9 +33,11 @@ pub async fn get_run_by_id_handler(
     }
 }
 
-pub async fn job_run_trigger_handler(
+pub async fn trigger_job_handler(
     State(state): State<SharedState>,
     Path((app_name, job_name)): Path<(String, String)>,
+    // Optional: Trigger might need a body too (e.g., manual inputs)
+    // Json(params): Json<TriggerParams>,
 ) -> Result<AppResponse<JobRun>, AppError> {
 
     let mut conn = state.pool.get().await?;
@@ -60,84 +62,87 @@ pub async fn job_run_trigger_handler(
     Ok(AppResponse::success_one("job-run", inserted))
 }
 
-pub async fn job_run_start_with_run_id_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
-) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_start_handler(State(state), Path((app_name, job_name, Some(job_run_id), stage_name))).await
+#[derive(Deserialize, Debug)] // Add Clone/Serialize if needed
+pub enum JobRunStageEventType {
+    #[serde(rename = "started")]
+    Started,
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "failed")]
+    Failed,
 }
-pub async fn job_run_start_without_run_id_handler(
+#[derive(Deserialize, Debug)]
+pub struct StageUpdatePayload {
+    pub stage_name: String,
+    pub event_type: JobRunStageEventType,
+    pub message: Option<String>, // Optional: Good for error messages on failure
+}
+pub async fn update_stage_by_id_handler(
     State(state): State<SharedState>,
-    Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
+    Path(job_run_id): Path<String>,
+    Json(payload): Json<StageUpdatePayload>,
 ) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_start_handler(State(state), Path((app_name, job_name, None, stage_name))).await
+    match payload.event_type {
+        JobRunStageEventType::Started => {
+            _job_run_start_handler(state, (None, Some(job_run_id.parse().unwrap()), payload.stage_name)).await
+        },
+        JobRunStageEventType::Completed => {
+            _job_run_complete_handler(state, (None, Some(job_run_id.parse().unwrap()), payload.stage_name)).await
+        },
+        JobRunStageEventType::Failed => {
+            _job_run_failed_handler(state, (None, Some(job_run_id.parse().unwrap()), payload.stage_name), payload.message).await
+        },
+    }
+}
+
+pub async fn update_stage_by_context_handler(
+    State(state): State<SharedState>,
+    Path((app_name, job_name)): Path<(String, String)>,
+    Json(payload): Json<StageUpdatePayload>,
+) -> Result<AppResponse<JobRun>, AppError> {
+    match payload.event_type {
+        JobRunStageEventType::Started => {
+            _job_run_start_handler(state, (Some((app_name, job_name)), None, payload.stage_name)).await
+        },
+        JobRunStageEventType::Completed => {
+            _job_run_complete_handler(state, (Some((app_name, job_name)), None, payload.stage_name)).await
+        },
+        JobRunStageEventType::Failed => {
+            _job_run_failed_handler(state, (Some((app_name, job_name)), None, payload.stage_name), payload.message).await
+        },
+    }
 }
 async fn _job_run_start_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
+    state: SharedState,
+    (app_name_and_job_name_option, job_run_id_option, stage_name): (Option<(String, String)>, Option<Uuid>, String),
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let (_job_config, job_run) = job_run_update_stage(&state, &mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
+    let (_job_config, job_run) = job_run_update_stage(&state, &mut conn, app_name_and_job_name_option, job_run_id_option, &stage_name, JobRunStageType::Start, JobRunStageStatus::Occurred).await?;
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
-pub async fn job_run_complete_with_run_id_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
-) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_complete_handler(State(state), Path((app_name, job_name, Some(job_run_id), stage_name))).await
-}
-pub async fn job_run_complete_without_run_id_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
-) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_complete_handler(State(state), Path((app_name, job_name, None, stage_name))).await
-}
 async fn _job_run_complete_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, job_run_id_option, stage_name)): Path<(String, String, Option<Uuid>, String)>,
+    state: SharedState,
+    (app_name_and_job_name_option, job_run_id_option, stage_name): (Option<(String, String)>, Option<Uuid>, String),
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let (_job_config, job_run) = job_run_update_stage(&state, &mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
+    let (_job_config, job_run) = job_run_update_stage(&state, &mut conn, app_name_and_job_name_option, job_run_id_option, &stage_name, JobRunStageType::Complete, JobRunStageStatus::Occurred).await?;
     Ok(AppResponse::success_one("job-run", job_run))
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct FailureRequest {
-    message: String,
-}
-
-pub async fn job_run_failed_with_run_id_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, job_run_id, stage_name)): Path<(String, String, Uuid, String)>,
-    Json(failure_request): Json<FailureRequest>,
-) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_failed_handler(state, (app_name, job_name, Some(job_run_id), stage_name), failure_request).await
-}
-pub async fn job_run_failed_without_run_id_handler(
-    State(state): State<SharedState>,
-    Path((app_name, job_name, stage_name)): Path<(String, String, String)>,
-    Json(failure_request): Json<FailureRequest>,
-) -> Result<AppResponse<JobRun>, AppError> {
-    _job_run_failed_handler(state, (app_name, job_name, None, stage_name), failure_request).await
-}
 async fn _job_run_failed_handler(
     state: SharedState,
-    (app_name, job_name, job_run_id_option, stage_name): (String, String, Option<Uuid>, String),
-    failure_request: FailureRequest,
+    (app_name_and_job_name_option, job_run_id_option, stage_name): (Option<(String, String)>, Option<Uuid>, String),
+    message: Option<String>,
 ) -> Result<AppResponse<JobRun>, AppError> {
     let mut conn = state.pool.get().await?;
-    let result = job_run_update_stage(&state, &mut conn, &app_name, &job_name, job_run_id_option, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await;
-    if let Ok((job_config, job_run)) = result {
-        let res = send_failed(&state.dispatcher, &job_config, &job_run, &stage_name, &failure_request.message, &job_config.channel_ids).await;
-        if let Err(err) = res {
-            error!("failed to send failed notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
-            _handle_error(&state.dispatcher, &app_name.to_string(), &job_name.to_string(), job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
-        }
-        Ok(AppResponse::success_one("job-run", job_run))
-    } else {
-        Err(result.err().unwrap())
+    let (job_config, job_run) = job_run_update_stage(&state, &mut conn, app_name_and_job_name_option.clone(), job_run_id_option, &stage_name, JobRunStageType::Failed, JobRunStageStatus::Failed).await?;
+    let res = send_failed(&state.dispatcher, &job_config, &job_run, &stage_name, &message.unwrap_or("".to_string()), &job_config.channel_ids).await;
+    if let Err(err) = res {
+        error!("failed to send failed notification: {:?} - {} - {} - {}", app_name_and_job_name_option, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
+        _handle_error(&state.dispatcher, app_name_and_job_name_option, job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
     }
+    Ok(AppResponse::success_one("job-run", job_run))
 }
 
 #[derive(Clone, PartialEq)]
@@ -150,63 +155,92 @@ pub enum JobRunStageType {
 async fn job_run_update_stage(
     state: &SharedState,
     conn: &mut DbConnection<'_>,
-    app_name: &str,
-    job_name: &str,
+    app_name_and_job_name_option: Option<(String, String)>,
     job_run_id_option: Option<Uuid>,
     stage_name: &String,
     stage_type: JobRunStageType,
     stage_status: JobRunStageStatus
 ) -> Result<(JobConfig, JobRun), AppError> {
-    let result = _job_run_update_stage(conn, app_name, job_name, job_run_id_option, stage_name, stage_type.clone(), stage_status).await;
+    if app_name_and_job_name_option.is_none() && job_run_id_option.is_none() {
+        return Err(AppError::BadRequest("Either (app_name and job_name) or job_run_id should be provided".to_string()))
+    }
+
+    let result;
+    if let Some(job_run_id) = job_run_id_option {
+        result = _job_run_update_stage_with_run_id(conn, job_run_id, stage_name, stage_type, stage_status).await;
+    } else {
+        let (app_name, job_name) = app_name_and_job_name_option.clone().unwrap();
+        result = _job_run_update_stage_with_app_name_and_job_name(conn, app_name, job_name, stage_name, stage_type, stage_status).await;
+    }
+
     if let Err(err) = result {
-        error!("failed to update stage: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
-        _handle_error(&state.dispatcher, &app_name.to_string(), &job_name.to_string(), job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
+        error!("failed to update stage: {:?} - {} - {} - {}", app_name_and_job_name_option, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
+        _handle_error(&state.dispatcher, app_name_and_job_name_option, job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
         Err(err)
     } else {
         result
     }
 }
-async fn _job_run_update_stage(
+async fn _job_run_update_stage_with_run_id(
     conn: &mut DbConnection<'_>,
-    app_name: &str,
-    job_name: &str,
-    job_run_id_option: Option<Uuid>,
+    job_run_id: Uuid,
     stage_name: &String,
     stage_type: JobRunStageType,
     stage_status: JobRunStageStatus
 ) -> Result<(JobConfig, JobRun), AppError> {
-    let job_config_option = get_job_config_by_app_name_and_job_name(conn, &app_name, &job_name).await?;
-    if job_config_option.is_none() {
-        return Err(AppError::NotFound(format!("job config not found for: {}-{}", &app_name, &job_name)))
-    }
-    let mut job_config = job_config_option.unwrap();
+    let job_run = _get_job_run_by_id(conn, &job_run_id).await?;
+
+    let (app_name, job_name) = (job_run.app_name.clone(), job_run.job_name.clone());
+
+    let job_config = _get_job_config_by_app_name_and_job_name(conn, &app_name, &job_name).await?;
 
     let utc_now = get_utc_now();
 
-    let mut job_run;
-    if let Some(job_run_id) = job_run_id_option {
-        let job_run_option = get_job_run_by_id(conn, &job_run_id).await?;
-        if job_run_option.is_none() {
-            return Err(AppError::NotFound(format!("job run not found for id: {}", &job_run_id)))
-        }
-        job_run = job_run_option.unwrap();
-    } else {
-        if job_config.zone_id.is_none() || job_config.schedule.is_none() {
-            return Err(AppError::InternalError(format!("zone or schedule should not be empty {}-{}", &app_name, &job_name)))
-        }
-        let zone_id = job_config.zone_id.as_ref().unwrap();
-        let tz_now = change_timezone(&utc_now, zone_id)?;
+    _job_run_update_stage_internal(conn, job_config, job_run, utc_now, stage_name, stage_type, stage_status).await
+}
 
-        let job_start_time = get_job_start_time(&job_config, &tz_now)?;
+async fn _job_run_update_stage_with_app_name_and_job_name(
+    conn: &mut DbConnection<'_>,
+    app_name: String,
+    job_name: String,
+    stage_name: &String,
+    stage_type: JobRunStageType,
+    stage_status: JobRunStageStatus
+) -> Result<(JobConfig, JobRun), AppError> {
+    let job_config = _get_job_config_by_app_name_and_job_name(conn, &app_name, &job_name).await?;
 
-        let job_run_option = get_latest_job_run_by_app_name_and_job_name(conn, app_name, job_name, &change_to_utc(&job_start_time)?).await?;
-
-        if job_run_option.is_some() {
-            job_run = job_run_option.unwrap();
-        } else {
-            job_run = create_new_job_run(conn, job_config.app_name.clone(), job_config.job_name.clone()).await?;
-        }
+    if job_config.zone_id.is_none() || job_config.schedule.is_none() {
+        return Err(AppError::InternalError(format!("zone or schedule should not be empty {}-{}", &app_name, &job_name)))
     }
+    let zone_id = job_config.zone_id.as_ref().unwrap();
+    let utc_now = get_utc_now();
+    let tz_now = change_timezone(&utc_now, zone_id)?;
+
+    let job_start_time = get_job_start_time(&job_config, &tz_now)?;
+
+    let job_run_option = get_latest_job_run_by_app_name_and_job_name(conn, &app_name, &job_name, &change_to_utc(&job_start_time)?).await?;
+
+    let job_run = match job_run_option {
+        Some(run) => run,
+        None => create_new_job_run(
+            conn,
+            job_config.app_name.clone(),
+            job_config.job_name.clone()
+        ).await?,
+    };
+
+    _job_run_update_stage_internal(conn, job_config, job_run, utc_now, stage_name, stage_type, stage_status).await
+}
+
+async fn _job_run_update_stage_internal(
+    conn: &mut DbConnection<'_>,
+    mut job_config: JobConfig,
+    mut job_run: JobRun,
+    utc_now: DateTime<Utc>,
+    stage_name: &String,
+    stage_type: JobRunStageType,
+    stage_status: JobRunStageStatus
+) -> Result<(JobConfig, JobRun), AppError> {
 
     // Enable the job if paused
     if !job_config.enabled {
@@ -238,3 +272,20 @@ async fn _job_run_update_stage(
     let updated = save_run(conn, job_run).await?;
     Ok((job_config, updated))
 }
+
+async fn _get_job_config_by_app_name_and_job_name(conn: &mut DbConnection<'_>, app_name: &String, job_name: &String) -> Result<JobConfig, AppError> {
+    let job_config_option = get_job_config_by_app_name_and_job_name(conn, app_name, job_name).await?;
+    if job_config_option.is_none() {
+        return Err(AppError::NotFound(format!("job config not found for: {}-{}", app_name, job_name)))
+    }
+    Ok(job_config_option.unwrap())
+}
+
+async fn _get_job_run_by_id(conn: &mut DbConnection<'_>, job_run_id: &Uuid) -> Result<JobRun, AppError> {
+    let job_run_option = get_job_run_by_id(conn, job_run_id).await?;
+    if job_run_option.is_none() {
+        return Err(AppError::NotFound(format!("job run not found for id: {}", job_run_id)))
+    }
+    Ok(job_run_option.unwrap())
+}
+

@@ -24,9 +24,11 @@ pub async fn send_error(dispatcher: &NotificationDispatcher, app_name: &String, 
     dispatcher.dispatch(app_name, job_name, job_run_id_opt, stage_name, channel_ids_str, Some(message.to_string()), Error).await
 }
 
-pub async fn _handle_error(dispatcher: &NotificationDispatcher, app_name: &String, job_name: &String, job_run_id_opt: Option<String>, stage_name: &str, message: &String, channel_ids_str: &str) {
-    let res = send_error(dispatcher, app_name, job_name, job_run_id_opt.clone(), &stage_name, message, channel_ids_str).await;
+pub async fn _handle_error(dispatcher: &NotificationDispatcher, app_name_and_job_name_option: Option<(String, String)>, job_run_id_opt: Option<String>, stage_name: &str, message: &String, channel_ids_str: &str) {
+    let (app_name, job_name) = app_name_and_job_name_option.unwrap_or_else(|| ("NA".to_string(), "NA".to_string()));
+    let job_run_id = job_run_id_opt.clone().unwrap_or_else(|| "NA".to_string());
+    let res = send_error(dispatcher, &app_name, &job_name, job_run_id_opt, &stage_name, message, channel_ids_str).await;
     if let Err(e) = res {
-        error!("failed to send error notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id_opt.unwrap_or_else(|| "None".to_string()), e.to_string());
+        error!("failed to send error notification: {} - {} - {} - {} - {}", app_name, job_name, stage_name, job_run_id, e.to_string());
     }
 }
