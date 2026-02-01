@@ -1,6 +1,6 @@
 use serde_json::Value;
 use tracing::{error, info};
-use crate::db::channel_repository::get_channel_by_id;
+use crate::db::channel_repository::get_channel_by_name;
 use crate::db::connection::PgPool;
 use crate::errors::AppError;
 use crate::models::{ProviderType};
@@ -45,7 +45,7 @@ impl NotificationDispatcher {
 
         for channel_id in channel_ids {
             // 1. Simulate fetching channel config from DB based on ID
-            if let Some(channel_cfg) = get_channel_by_id(&mut conn, &channel_id).await? {
+            if let Some(channel_cfg) = get_channel_by_name(&mut conn, &channel_id).await? {
                 // 2. Look up the plugin implementation in the registry based on type string
                 if let Some(plugin) = self.registry.get(&channel_cfg.provider_type) {
                     // Prepare data for async move

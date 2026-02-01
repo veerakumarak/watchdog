@@ -9,9 +9,11 @@ use crate::{SharedState};
 use crate::core::job_run_matching::get_status;
 use crate::core::job_stage_validations::check;
 use crate::cron_utils::get_job_start_time;
-use crate::db::config_repository::{get_job_config_by_app_name_and_job_name, save_config};
+use crate::db::config_repository::{get_all_job_configs, get_job_config_by_app_name_and_job_name, save_config};
 use crate::db::connection::DbConnection;
-use crate::db::run_repository::{create_new_job_run, get_job_run_by_id, get_latest_job_run_by_app_name_and_job_name, insert_run, save_run};
+use crate::db::run_repository::{create_new_job_run, get_all_runs_top_100, get_job_run_by_id, get_latest_job_run_by_app_name_and_job_name, insert_run, save_run};
+use crate::dtos::job_config::JobConfigDto;
+use crate::dtos::job_run::JobRunDto;
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
 use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
@@ -31,6 +33,17 @@ pub async fn get_run_by_id_handler(
     } else {
         Err(AppError::NotFound(format!("Run instance doesn't exists for id '{}'", _run_id)))
     }
+}
+
+pub async fn get_all_runs_handler(
+    State(state): State<SharedState>,
+) -> Result<AppResponse<Vec<JobRunDto>>, AppError> {
+
+    let mut conn = state.pool.get().await?;
+
+    let job_runs = get_all_runs_top_100(&mut conn).await?;
+
+    Ok(AppResponse::success_one("job-runs", job_runs.into_iter().map(Into::into).collect()))
 }
 
 pub async fn trigger_job_handler(

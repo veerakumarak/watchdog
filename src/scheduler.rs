@@ -14,7 +14,7 @@ pub async fn scheduler(db: &PgPool, notification_dispatcher: &NotificationDispat
     info!("Initial delay complete. Starting scheduled task loop.");
 
     loop {
-        check_all_timeouts(db, notification_dispatcher, config).await.expect("scheduler died");
+        // check_all_timeouts(db, notification_dispatcher, config).await.expect("scheduler died");
 
         info!("Task completed. Waiting for fixed delay of {}secs...", config.scheduler_fixed_delay_seconds);
 
