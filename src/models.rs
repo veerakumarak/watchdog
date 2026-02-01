@@ -104,11 +104,12 @@ pub enum ProviderType {
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Selectable, AsChangeset)]
 #[diesel(table_name = channels)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(primary_key(name))]
 pub struct Channel {
-    pub id: String,
     pub name: String,
     pub provider_type: ProviderType,
     pub configuration: Value,
+    // pub configuration: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -116,8 +117,21 @@ pub struct Channel {
 #[diesel(table_name = channels)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewChannel {
-    pub id: String,
     pub name: String,
     pub provider_type: ProviderType,
+    // pub configuration: String,
     pub configuration: Value,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Queryable, Identifiable, Selectable, AsChangeset)]
+#[diesel(table_name = global_settings)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct Settings {
+    pub id: i32,
+    pub success_retention_days: i32,
+    pub failure_retention_days: i32,
+    pub maintenance_mode: bool,
+    pub default_channels: String, // Coming from your MultiSelect join(",")
+    pub max_stage_duration_hours: i32
 }

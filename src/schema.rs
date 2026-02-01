@@ -14,13 +14,23 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ProviderType;
 
-    channels (id) {
-        id -> Varchar,
+    channels (name) {
         name -> Varchar,
         provider_type -> ProviderType,
         configuration -> Jsonb,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    global_settings (id) {
+        id -> Int4,
+        success_retention_days -> Int4,
+        failure_retention_days -> Int4,
+        maintenance_mode -> Bool,
+        default_channels -> Text,
+        max_stage_duration_hours -> Int4,
     }
 }
 
@@ -58,4 +68,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(channels, job_configs, job_runs,);
+diesel::allow_tables_to_appear_in_same_query!(channels, global_settings, job_configs, job_runs,);

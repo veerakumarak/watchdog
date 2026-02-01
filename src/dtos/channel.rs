@@ -1,24 +1,21 @@
-use crate::validations::validate_name;
+use crate::validations::{validate_name, validate_config_json};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use validator::Validate;
 use crate::models::{Channel, ProviderType};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ChannelResponseDto {
-    pub id: String,
     pub name: String,
     pub provider_type: ProviderType,
-    pub configuration: Value,
+    pub configuration: String,
 }
 
 impl From<Channel> for ChannelResponseDto {
     fn from(channel: Channel) -> Self {
         Self {
-            id: channel.id,
             name: channel.name,
             provider_type: channel.provider_type,
-            configuration: channel.configuration,
+            configuration: channel.configuration.to_string(),
         }
     }
 }
@@ -26,17 +23,15 @@ impl From<Channel> for ChannelResponseDto {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ChannelCreateRequest {
     #[validate(custom(function = "validate_name"))]
-    pub id: String,
-    #[validate(custom(function = "validate_name"))]
     pub name: String,
     pub provider_type: ProviderType,
-    pub configuration: Value,
+    #[validate(custom(function = "validate_config_json"))]
+    pub configuration: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ChannelUpdateRequest {
-    #[validate(custom(function = "validate_name"))]
-    pub name: String,
     pub provider_type: ProviderType,
-    pub configuration: Value,
+    #[validate(custom(function = "validate_config_json"))]
+    pub configuration: String,
 }

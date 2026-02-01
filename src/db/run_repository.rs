@@ -39,6 +39,16 @@ pub async fn get_latest_job_run_by_app_name_and_job_name(
     Ok(job_run)
 }
 
+pub async fn get_all_runs_top_100(conn: &mut DbConnection<'_>) -> Result<Vec<JobRun>, AppError> {
+    use crate::schema::job_runs::dsl::*;
+    let result = job_runs
+        .limit(100)
+        .load::<JobRun>(conn)
+        .await?;
+
+    Ok(result)
+}
+
 pub async fn get_all_pending_job_runs(
     conn: &mut DbConnection<'_>,
     time_boundary: DateTime<Utc>,

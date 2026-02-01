@@ -1,16 +1,16 @@
-use diesel::{QueryDsl, OptionalExtension};
+use diesel::{QueryDsl, OptionalExtension, ExpressionMethods};
 use diesel_async::RunQueryDsl;
 use crate::db::connection::DbConnection;
 use crate::errors::AppError;
 use crate::models::{Channel, NewChannel};
 
-pub async fn get_channel_by_id(
+pub async fn get_channel_by_name(
     conn: &mut DbConnection<'_>,
-    _id: &str,
+    _name: &str,
 ) -> Result<Option<Channel>, AppError> {
     use crate::schema::channels::dsl::*;
     let res = channels
-        .find(_id)
+        .find(_name)
         .first::<Channel>(conn)
         .await
         .optional()?;
@@ -47,7 +47,7 @@ pub async fn save_channel(
 ) -> Result<Channel, AppError> {
 
     use crate::schema::channels::dsl::*;
-    let updated = diesel::update(channels.find(_channel.id.clone()))
+    let updated = diesel::update(channels.find(_channel.name.clone()))
         .set(&_channel)
         .get_result::<Channel>(conn)
         .await?;

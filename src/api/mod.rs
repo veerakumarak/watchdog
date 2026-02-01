@@ -3,3 +3,4 @@ pub mod config_handler;
 pub mod event_handler;
 pub mod run_handler;
 pub mod channel_handler;
+pub mod settings_handler;
