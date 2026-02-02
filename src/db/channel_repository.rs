@@ -1,4 +1,4 @@
-use diesel::{QueryDsl, OptionalExtension, ExpressionMethods};
+use diesel::{QueryDsl, OptionalExtension};
 use diesel_async::RunQueryDsl;
 use crate::db::connection::DbConnection;
 use crate::errors::AppError;

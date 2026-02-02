@@ -1,7 +1,6 @@
-use crate::validations::{validate_name, validate_config_json};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::models::{Channel, ProviderType, Settings};
+use crate::models::{Settings};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SettingsResponseDto {
@@ -31,11 +30,4 @@ pub struct SettingsUpdateRequest {
     pub maintenance_mode: Option<bool>,
     pub default_channels: Option<String>,
     pub max_stage_duration_hours: Option<i32>
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct ChannelUpdateRequest {
-    pub provider_type: ProviderType,
-    #[validate(custom(function = "validate_config_json"))]
-    pub configuration: String,
 }
