@@ -83,7 +83,8 @@ async fn main() {
 
     // tokio::spawn(scheduler(&get_connection_pool(&config.postgres_url).await.unwrap()));
     let scheduler_pool = pool.clone();
-    tokio::spawn(async move { scheduler(&scheduler_pool, &dispatcher, &config).await });
+    let state_clone = state.clone();
+    tokio::spawn(async move { scheduler(&scheduler_pool, &dispatcher, state_clone).await });
 
     let pub_sub_pool = pool.clone();
     start_listener(pub_sub_pool, state.clone()).await;
