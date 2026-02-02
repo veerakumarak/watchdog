@@ -11,7 +11,7 @@ use crate::db::config_repository::get_all_enabled_configs;
 use crate::db::connection::{DbConnection, PgPool};
 use crate::db::run_repository::{get_all_pending_job_runs, insert_run, save_run};
 use crate::errors::AppError;
-use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, NewJobRun};
+use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, NewJobRun, Settings};
 use crate::cron_utils::{get_job_start_time, in_between};
 use crate::notification::core::{send_timeout};
 use crate::notification::dispatcher::NotificationDispatcher;
@@ -20,7 +20,8 @@ use crate::time_utils::{change_to_utc, get_tz, get_utc_now};
 pub async fn check_all_timeouts(
     pool: &PgPool,
     notification_dispatcher: &NotificationDispatcher,
-    config: &Config
+    config: &Config,
+    settings: Settings
 ) -> Result<(), AppError> {
     let mut conn = pool.get().await?;
     let all_enabled_configs: Vec<JobConfig> = get_all_enabled_configs(&mut conn).await?;
@@ -34,7 +35,7 @@ pub async fn check_all_timeouts(
 
     let utc_now = get_utc_now();
 
-    let time_boundary = utc_now.checked_sub_signed(Duration::hours(config.max_stage_duration_hours));
+    let time_boundary = utc_now.checked_sub_signed(Duration::hours(settings.max_stage_duration_hours as i64));
     let pending_events: Vec<JobRun> = get_all_pending_job_runs(&mut conn, time_boundary.unwrap()).await?;
     let latest_job_runs_by_name: HashMap<String, JobRun> = get_valid_events(&pending_events);
 
