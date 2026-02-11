@@ -40,8 +40,8 @@ pub async fn start_listener(pool: PgPool, state: SharedState) {
                             Ok(data) => {
                                 println!("🔔 Received {:?} for id: {}", data, data.id);
                                 {
-                                    let mut config_lock = state.settings.write().expect("Failed to acquire write lock");
-                                    *config_lock = data;
+                                    let mut settings_lock = state.settings.write().expect("Failed to acquire write lock");
+                                    *settings_lock = data;
                                 }
                                 // Refined Logic: Only update specific cache key or re-fetch row by ID
                                 // refresh_specific_setting(data.id, pool.clone(), current_settings.clone()).await;

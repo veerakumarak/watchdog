@@ -12,6 +12,7 @@ BEGIN
     'failure_retention_days', NEW.failure_retention_days,
     'maintenance_mode', NEW.maintenance_mode,
     'default_channels', NEW.default_channels,
+    'error_channels', NEW.error_channels,
     'max_stage_duration_hours', NEW.max_stage_duration_hours,
     'action', TG_OP
   );

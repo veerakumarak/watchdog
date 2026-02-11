@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter
-} from "@/components/ui/sheet.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { Separator } from "@/components/ui/separator.tsx";
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Save, Mail, MessageSquare/*, Hash */} from "lucide-react";
-import type {Channel, ProviderType} from "@/lib/types.ts";
-// import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area.tsx";
+import type {Channel, ProviderType} from "@/lib/types";
+
+// import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 
 interface ChannelFormSheetProps {
     open: boolean;

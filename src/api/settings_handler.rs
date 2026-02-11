@@ -30,6 +30,7 @@ pub async fn update_settings_handler(
     _settings.failure_retention_days = _update_request.failure_retention_days.unwrap();
     _settings.maintenance_mode = _update_request.maintenance_mode.unwrap();
     _settings.default_channels = _update_request.default_channels.unwrap();
+    _settings.error_channels = _update_request.error_channels.unwrap();
     _settings.max_stage_duration_hours = _update_request.max_stage_duration_hours.unwrap();
 
     let updated = save_settings(&mut conn, _settings).await?;

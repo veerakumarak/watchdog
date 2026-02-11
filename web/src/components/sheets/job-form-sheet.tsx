@@ -20,8 +20,31 @@ import {
 } from "@/components/ui/select";
 import {Separator} from "@/components/ui/separator";
 import {Plus, Trash2, Save} from "lucide-react";
-import type {JobConfig, Stage} from "@/lib/types.ts";
+import type {Channel, JobConfig} from "@/lib/types";
+import {get} from "@/lib/fetcher";
+import {MultiSelect} from "@/components/ui/multi-select";
+import {toast} from "sonner";
 
+// --- Types ---
+// Matches your JobConfig structure
+// export type JobConfig = {
+//     id?: string;
+//     app_name: string;
+//     job_name: string;
+//     schedule: string;
+//     zone_id: string;
+//     channel_ids: string;
+//     enabled: boolean;
+//     stages: Stage[];
+// };
+//
+export type Stage = {
+    name: string;
+    start: number | null;
+    complete: number | null;
+};
+
+// Internal Form State (allows strings for empty inputs)
 type StageInput = {
     name: string;
     start: string | number;
@@ -44,6 +67,10 @@ const DEFAULT_FORM_STATE = {
     enabled: true,
 };
 
+type ChannelsListResponse = {
+    channels: Channel[];
+}
+
 const DEFAULT_STAGES: StageInput[] = [{name: "dqa", start: "", complete: 0}];
 
 const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetProps) => {
@@ -53,9 +80,38 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
     const [formData, setFormData] = useState(DEFAULT_FORM_STATE);
     const [stages, setStages] = useState<StageInput[]>(DEFAULT_STAGES);
 
+    // Multi-select specific state
+    const [channels, setChannels] = useState<Channel[]>([]);
+    const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+
+    const loadChannels = async () => {
+        const data = await get<ChannelsListResponse>('/channels');
+        if (data.isOk()) {
+            setChannels(data.get().channels);
+        } else {
+            // console.error("Failed to load channels", data.failure());
+            toast.error("Could not load channels." + data.failure().message);
+        }
+    };
+
+    // Load available channels once
+    // useEffect(() => {
+    //     console.log('in progress');
+    //     loadChannels();
+    //     // const fetchChannels = async () => {
+    //     //     const data = await get<{channels: Channel[]}>('/channels');
+    //     //     if (data.isOk()) setChannels(data.get().channels);
+    //     // };
+    //     // fetchChannels();
+    // }, []);
+
     // --- Effect: Reset or Populate Form on Open ---
     useEffect(() => {
-        if (open) {
+
+        if (!open) return;
+
+        // Fetch data needed for dropdowns
+        loadChannels().then(r => {
             if (initialData) {
                 // EDIT MODE: Populate fields
                 setFormData({
@@ -63,9 +119,15 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                     jobName: initialData.jobName,
                     schedule: initialData.schedule,
                     zoneId: initialData.zoneId,
-                    channel_ids: initialData.channel_ids,
+                    channel_ids: initialData.channel_ids || "",
                     enabled: initialData.enabled,
                 });
+
+                // Sync MultiSelect state: "chan1,chan2" -> ["chan1", "chan2"]
+                const channelArray = initialData.channel_ids
+                    ? initialData.channel_ids.split(',').map(s => s.trim())
+                    : [];
+                setSelectedChannels(channelArray);
 
                 // Map stages (handle nulls -> empty strings for inputs)
                 setStages(initialData.stages.map(s => ({
@@ -76,9 +138,11 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
             } else {
                 // CREATE MODE: Reset to defaults
                 setFormData(DEFAULT_FORM_STATE);
+                setSelectedChannels([]);
                 setStages(DEFAULT_STAGES);
             }
-        }
+        });
+
     }, [open, initialData]);
 
     // --- Handlers ---
@@ -110,6 +174,7 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
 
         const payload: JobConfig = {
             ...formData,
+            channel_ids: selectedChannels.join(','),
             stages: cleanedStages,
         };
 
@@ -134,6 +199,7 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
 
                 {/* 3. SCROLLABLE AREA: flex-1 takes remaining space */}
                 <div className="flex-1 overflow-y-auto">
+
                     <div className="p-6 space-y-6">
                         {/* SECTION 1: Identity */}
                         <div className="space-y-4">
@@ -198,15 +264,36 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                                 </div>
                             </div>
 
+                            {/* MULTI-SELECT REPLACEMENT */}
                             <div className="space-y-2">
-                                <Label htmlFor="channels">Notification Channels</Label>
-                                <Input
-                                    id="channels"
-                                    value={formData.channel_ids}
-                                    onChange={(e) => handleInputChange("channel_ids", e.target.value)}
-                                    placeholder="comma_separated_ids"
+                                <Label>Notification Channels</Label>
+                                <MultiSelect
+                                    options={channels.map(c => ({ label: c.name, value: c.name }))}
+                                    // selected={selectedChannels}
+                                    selected={formData.channel_ids ? formData.channel_ids.split(',').filter(Boolean) : []}
+                                    // onChange={setSelectedChannels}
+                                    onChange={(selectedArray) => {
+                                        // Convert array ["id1", "id2"] -> "id1,id2"
+                                        handleInputChange("channel_ids", selectedArray.join(','));
+                                    }}
+                                    placeholder="Select alert channels..."
                                 />
                             </div>
+
+                            <div className="space-y-200">
+                                {/*<Separator/>*/}
+                                hello
+                            </div>
+
+                            {/*<div className="space-y-2">*/}
+                            {/*    <Label htmlFor="channels">Notification Channels</Label>*/}
+                            {/*    <Input*/}
+                            {/*        id="channels"*/}
+                            {/*        value={formData.channel_ids}*/}
+                            {/*        onChange={(e) => handleInputChange("channel_ids", e.target.value)}*/}
+                            {/*        placeholder="comma_separated_ids"*/}
+                            {/*    />*/}
+                            {/*</div>*/}
 
                             <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
                                 <Label htmlFor="enabled" className="cursor-pointer">Job Enabled</Label>

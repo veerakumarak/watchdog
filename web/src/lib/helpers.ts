@@ -1,5 +1,5 @@
-import type {JobConfig} from "@/lib/types.ts";
+import type {JobConfig} from "@/lib/types";
 
 export const getId = (jobConfig: JobConfig) => {
-    return jobConfig.app_name + '-' + jobConfig.job_name;
+    return jobConfig.appName + '-' + jobConfig.jobName;
 }

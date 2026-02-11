@@ -1,6 +1,5 @@
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use std::collections::{HashMap};
-use std::ops::Sub;
 use chrono::{Duration, DateTime, Utc};
 use chrono_tz::Tz;
 use chrono_tz::Tz::UTC;
@@ -9,9 +8,9 @@ use crate::config::Config;
 use crate::core::job_run_matching::detect_time_outs;
 use crate::db::config_repository::get_all_enabled_configs;
 use crate::db::connection::{DbConnection, PgPool};
-use crate::db::run_repository::{get_all_pending_job_runs, insert_run, save_run};
+use crate::db::run_repository::{create_new_job_run, get_all_pending_job_runs, save_run};
 use crate::errors::AppError;
-use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, NewJobRun, Settings};
+use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStatus, Settings};
 use crate::cron_utils::{get_job_start_time, in_between};
 use crate::notification::core::{send_timeout};
 use crate::notification::dispatcher::NotificationDispatcher;
@@ -82,26 +81,25 @@ async fn process_scheduled_job_timeouts(
                 Ok(true) => {
                     if let Ok(job_start_time) = get_job_start_time(job_config, zoned_time_now) {
                         let job_config_key = format!("{}-{}", job_config.app_name, job_config.job_name);
-                        let job_run_option = latest_job_runs_by_name.get(&job_config_key).cloned();
-                        let mut job_run: JobRun;
-                        if job_run_option.is_none() || job_run_option.as_ref().unwrap().created_at < job_start_time.sub(Duration::seconds(config.grace_time_seconds)) {
-                            let new_job = NewJobRun {
-                                app_name: job_config.app_name.clone(),
-                                job_name: job_config.job_name.clone(),
-                                status: JobRunStatus::InProgress,
-                                stages: diesel_json::Json(Vec::new()),
-                                triggered_at: utc_now.clone(),
-                            };
 
-                            if let Ok(_job_run) = insert_run(conn, new_job).await {
-                                job_run = _job_run;
-                            } else {
-                                error!("Failed to insert job_run for job: {}", job_config.job_name);
-                                continue;
+                        let grace_threshold = job_start_time - Duration::seconds(config.grace_time_seconds);
+
+                        // let job_run_option = latest_job_runs_by_name.get(&job_config_key).cloned();
+                        let mut job_run = match latest_job_runs_by_name.get(&job_config_key) {
+                            // Case 1: Job exists AND is within the grace period
+                            Some(existing) if existing.created_at >= grace_threshold => existing.clone(),
+
+                            // Case 2: Job doesn't exist OR it's older than the grace period
+                            _ => {
+                                match create_new_job_run(conn, &job_config.app_name, &job_config.job_name).await {
+                                    Ok(new_run) => new_run,
+                                    Err(_) => {
+                                        error!("Failed to insert job_run for job: {}", job_config.job_name);
+                                        continue; // Note: Ensure this is inside a loop
+                                    }
+                                }
                             }
-                        } else {
-                            job_run = job_run_option.unwrap();
-                        }
+                        };
 
                         update_event_stages(conn, job_config, zoned_time_now, &job_start_time, &mut job_run, notification_dispatcher).await;
 
@@ -148,7 +146,7 @@ async fn update_event_stages(
 ) {
     let event_stages = detect_time_outs(job_config, job_run, zoned_time_now, job_start_time);
 
-    error!("event_stages: {:?}", event_stages);
+    warn!("timeout detected for stages: {:?}", event_stages);
 
     if !event_stages.is_empty() {
         job_run.stages = diesel_json::Json(combine(&job_run.stages, event_stages.clone()));

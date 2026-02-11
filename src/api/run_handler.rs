@@ -11,11 +11,11 @@ use crate::core::job_stage_validations::check;
 use crate::cron_utils::get_job_start_time;
 use crate::db::config_repository::{get_job_config_by_app_name_and_job_name, save_config};
 use crate::db::connection::DbConnection;
-use crate::db::run_repository::{create_new_job_run, get_all_runs_top_100, get_job_run_by_id, get_latest_job_run_by_app_name_and_job_name, insert_run, save_run};
+use crate::db::run_repository::{create_new_job_run, get_all_runs_top_100, get_job_run_by_id, get_latest_job_run_by_app_name_and_job_name, save_run};
 use crate::dtos::job_run::JobRunDto;
 use crate::errors::AppError;
 use crate::jsend::AppResponse;
-use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus, JobRunStatus, NewJobRun};
+use crate::models::{JobConfig, JobRun, JobRunStage, JobRunStageStatus};
 use crate::notification::core::{_handle_error, send_failed};
 use crate::time_utils::{change_timezone, change_to_utc, get_utc_now};
 
@@ -62,16 +62,9 @@ pub async fn trigger_job_handler(
 
     // let job_config = job_config_option.unwrap();
 
-    let new_job_run = NewJobRun {
-        app_name,
-        job_name,
-        triggered_at: get_utc_now(),
-        status: JobRunStatus::InProgress,
-        stages: diesel_json::Json(Vec::new()),
-    };
+    let new_job_run = create_new_job_run(&mut conn, &app_name, &job_name).await?;
 
-    let inserted = insert_run(&mut conn, new_job_run).await?;
-    Ok(AppResponse::success_one("job-run", inserted))
+    Ok(AppResponse::success_one("job-run", new_job_run))
 }
 
 #[derive(Deserialize, Debug)] // Add Clone/Serialize if needed
@@ -152,7 +145,22 @@ async fn _job_run_failed_handler(
     let res = send_failed(&state.dispatcher, &job_config, &job_run, &stage_name, &message.unwrap_or("".to_string()), &job_config.channel_ids).await;
     if let Err(err) = res {
         error!("failed to send failed notification: {:?} - {} - {} - {}", app_name_and_job_name_option, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
-        _handle_error(&state.dispatcher, app_name_and_job_name_option, job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
+
+        // 1. Get the data and drop the lock immediately
+        let error_channels = {
+            let _settings = state.settings.read().expect("Lock poisoned");
+            _settings.error_channels.clone() // Clone the data out
+        }; // Guard is dropped here
+
+        // 2. Now await using the cloned data
+        _handle_error(
+            &state.dispatcher,
+            app_name_and_job_name_option,
+            job_run_id_option.map(|uuid| uuid.to_string()),
+            &stage_name,
+            &err.to_string(),
+            &error_channels // Pass the clone
+        ).await;
     }
     Ok(AppResponse::success_one("job-run", job_run))
 }
@@ -185,9 +193,37 @@ async fn job_run_update_stage(
         result = _job_run_update_stage_with_app_name_and_job_name(conn, app_name, job_name, stage_name, stage_type, stage_status).await;
     }
 
+    /*
+        if let Err(err) = result {
+        error!("failed to update stage: {:?} - {} - {} - {}", app_name_and_job_name_option, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
+        {
+            let _settings = state.settings.read().expect("Lock poisoned");
+            _handle_error(&state.dispatcher, app_name_and_job_name_option, job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &_settings.error_channels).await;
+        }
+        Err(err)
+    } else {
+        result
+    }
+
+     */
     if let Err(err) = result {
         error!("failed to update stage: {:?} - {} - {} - {}", app_name_and_job_name_option, stage_name, job_run_id_option.map(|uuid| uuid.to_string()).unwrap_or_else(|| "None".to_string()), err.to_string());
-        _handle_error(&state.dispatcher, app_name_and_job_name_option, job_run_id_option.map(|uuid| uuid.to_string()), &stage_name, &err.to_string(), &state.config.error_channel_ids).await;
+
+        // 1. Get the data and drop the lock immediately
+        let error_channels = {
+            let _settings = state.settings.read().expect("Lock poisoned");
+            _settings.error_channels.clone() // Clone the data out
+        }; // Guard is dropped here
+
+        // 2. Now await using the cloned data
+        _handle_error(
+            &state.dispatcher,
+            app_name_and_job_name_option,
+            job_run_id_option.map(|uuid| uuid.to_string()),
+            &stage_name,
+            &err.to_string(),
+            &error_channels // Pass the clone
+        ).await;
         Err(err)
     } else {
         result
@@ -236,8 +272,8 @@ async fn _job_run_update_stage_with_app_name_and_job_name(
         Some(run) => run,
         None => create_new_job_run(
             conn,
-            job_config.app_name.clone(),
-            job_config.job_name.clone()
+            &job_config.app_name,
+            &job_config.job_name
         ).await?,
     };
 

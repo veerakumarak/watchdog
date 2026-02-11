@@ -59,18 +59,23 @@ FROM alpine:3.20
 WORKDIR /app
 
 # Install runtime dependencies (libpq is required for Postgres)
-#RUN apk add --no-cache libpq ca-certificates
+RUN apk add --no-cache libpq libgcc ca-certificates
+#RUN apk add --no-cache \
+#    libpq \
+#    libgcc \
+#    libssl3 \
+#    ca-certificates \
 
 # Copy the static frontend files from the 'frontend-builder' stage
 # We place them in a 'static' directory for Axum to serve
-COPY --from=frontend-builder /app/web/out ./static
+COPY --from=frontend-builder /app/web/dist ./web/dist
 
 # Copy the compiled Rust binary from the 'backend-builder' stage
 # IMPORTANT: Change 'backend' to your actual binary name from Cargo.toml
-COPY --from=backend-builder /app/target/release/backend .
+COPY --from=backend-builder /app/target/release .
 
 # Expose the port your Axum server listens on
-EXPOSE 8000
+EXPOSE 9000
 
 # Run the backend server
-CMD ["./backend"]
+CMD ["./watchdog"]
