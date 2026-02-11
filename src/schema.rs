@@ -30,6 +30,7 @@ diesel::table! {
         failure_retention_days -> Int4,
         maintenance_mode -> Bool,
         default_channels -> Text,
+        error_channels -> Text,
         max_stage_duration_hours -> Int4,
     }
 }

@@ -16,11 +16,11 @@ import {ScrollArea, ScrollBar} from "@/components/ui/scroll-area";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 
 import {useEffect, useState} from "react";
-import JobFormSheet from "@/components/sheets/job-form-sheet.tsx";
-import type {JobConfig} from "@/lib/types.ts";
+import JobFormSheet from "@/components/sheets/job-form-sheet";
+import type {JobConfig} from "@/lib/types";
 import {toast} from "sonner";
-import {get, post, put} from "@/lib/fetcher.ts";
-import {getId} from "@/lib/helpers.ts";
+import {get, post, put} from "@/lib/fetcher";
+import {getId} from "@/lib/helpers";
 
 type JobsListResponse = {
     jobConfigs: JobConfig[];

@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Eye, RotateCw, Filter } from "lucide-react";
 import { format } from 'date-fns';
 import type {JobRun} from '@/lib/types';
-import RunTimeline from "@/components/jobs/RunTimeline.tsx";
-import {get} from "@/lib/fetcher.ts";
+import RunTimeline from "@/components/jobs/RunTimeline";
+import {get} from "@/lib/fetcher";
 import {toast} from "sonner";
 
 type JobRunsListResponse = {

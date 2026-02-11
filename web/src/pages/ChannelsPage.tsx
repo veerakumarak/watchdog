@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash2, Mail, Hash, MessageSquare } from "lucide-react";
 import {type Channel, type ProviderType} from '@/lib/types';
-import ChannelFormSheet from "@/components/sheets/channel-form-sheet.tsx";
-import {get, post, put} from "@/lib/fetcher.ts";
+import ChannelFormSheet from "@/components/sheets/channel-form-sheet";
+import {get, post, put} from "@/lib/fetcher";
 import {toast} from "sonner";
 
 type ChannelsListResponse = {
@@ -83,7 +83,7 @@ const ChannelsPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {!loading && channels.map((channel) => (
-                    <Card key={channel.id} className="group hover:border-blue-300 transition-colors">
+                    <Card key={channel.name} className="group hover:border-blue-300 transition-colors">
                         <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-slate-50 rounded-md border">

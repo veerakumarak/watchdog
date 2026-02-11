@@ -64,13 +64,13 @@ pub async fn get_all_pending_job_runs(
 
 pub async fn create_new_job_run(
     conn: &mut DbConnection<'_>,
-    _app_name: String,
-    _job_name: String,
+    _app_name: &String,
+    _job_name: &String,
 ) -> Result<JobRun, AppError> {
 
     let new_job_run = NewJobRun {
-        app_name: _app_name,
-        job_name: _job_name,
+        app_name: _app_name.clone(),
+        job_name: _job_name.clone(),
         status: JobRunStatus::InProgress,
         stages: diesel_json::Json(Vec::new()),
         triggered_at: get_utc_now(),

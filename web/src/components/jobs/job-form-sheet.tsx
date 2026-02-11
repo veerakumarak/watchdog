@@ -20,7 +20,10 @@ import {
 } from "@/components/ui/select";
 import {Separator} from "@/components/ui/separator";
 import {Plus, Trash2, Save} from "lucide-react";
-import type {JobConfig} from "@/lib/types.ts";
+import type {Channel, JobConfig} from "@/lib/types";
+import {get} from "@/lib/fetcher";
+import {MultiSelect} from "@/components/ui/multi-select";
+import {toast} from "sonner";
 
 // --- Types ---
 // Matches your JobConfig structure
@@ -64,6 +67,10 @@ const DEFAULT_FORM_STATE = {
     enabled: true,
 };
 
+type ChannelsListResponse = {
+    channels: Channel[];
+}
+
 const DEFAULT_STAGES: StageInput[] = [{name: "dqa", start: "", complete: 0}];
 
 const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetProps) => {
@@ -73,9 +80,39 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
     const [formData, setFormData] = useState(DEFAULT_FORM_STATE);
     const [stages, setStages] = useState<StageInput[]>(DEFAULT_STAGES);
 
+    // Multi-select specific state
+    const [channels, setChannels] = useState<Channel[]>([]);
+    const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
+
+    const loadChannels = async () => {
+        const data = await get<ChannelsListResponse>('/channels');
+        if (data.isOk()) {
+            setChannels(data.get().channels);
+        } else {
+            // console.error("Failed to load channels", data.failure());
+            toast.error("Could not load channels." + data.failure().message);
+        }
+    };
+
+    // Load available channels once
+    // useEffect(() => {
+    //     console.log('in progress');
+    //     loadChannels();
+    //     // const fetchChannels = async () => {
+    //     //     const data = await get<{channels: Channel[]}>('/channels');
+    //     //     if (data.isOk()) setChannels(data.get().channels);
+    //     // };
+    //     // fetchChannels();
+    // }, []);
+
     // --- Effect: Reset or Populate Form on Open ---
     useEffect(() => {
-        if (open) {
+        // Only run logic when the form is opened
+        if (!open) return;
+
+        // Fetch data needed for dropdowns
+        loadChannels();
+
             if (initialData) {
                 // EDIT MODE: Populate fields
                 setFormData({
@@ -87,6 +124,12 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                     enabled: initialData.enabled,
                 });
 
+                // Sync MultiSelect state: "chan1,chan2" -> ["chan1", "chan2"]
+                const channelArray = initialData.channel_ids
+                    ? initialData.channel_ids.split(',').map(s => s.trim())
+                    : [];
+                setSelectedChannels(channelArray);
+
                 // Map stages (handle nulls -> empty strings for inputs)
                 setStages(initialData.stages.map(s => ({
                     name: s.name,
@@ -96,9 +139,9 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
             } else {
                 // CREATE MODE: Reset to defaults
                 setFormData(DEFAULT_FORM_STATE);
+                setSelectedChannels([]);
                 setStages(DEFAULT_STAGES);
             }
-        }
     }, [open, initialData]);
 
     // --- Handlers ---
@@ -130,6 +173,7 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
 
         const payload: JobConfig = {
             ...formData,
+            channel_ids: selectedChannels.join(','),
             stages: cleanedStages,
         };
 
@@ -162,7 +206,7 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                                 <Input
                                     id="app"
                                     value={formData.appName}
-                                    onChange={(e) => handleInputChange("app_name", e.target.value)}
+                                    onChange={(e) => handleInputChange("appName", e.target.value)}
                                     disabled={isEditMode} // Cannot change Primary Key
                                     className={isEditMode ? "bg-slate-100 text-slate-500" : ""}
                                 />
@@ -172,7 +216,7 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                                 <Input
                                     id="job"
                                     value={formData.jobName}
-                                    onChange={(e) => handleInputChange("job_name", e.target.value)}
+                                    onChange={(e) => handleInputChange("jobName", e.target.value)}
                                     disabled={isEditMode} // Cannot change Primary Key
                                     className={isEditMode ? "bg-slate-100 text-slate-500" : ""}
                                 />
@@ -214,14 +258,26 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                             </div>
                         </div>
 
+                        {/* MULTI-SELECT REPLACEMENT */}
                         <div className="space-y-2">
-                            <Label htmlFor="channels">Notification Channels</Label>
-                            <Input
-                                id="channels"
-                                value={formData.channel_ids}
-                                onChange={(e) => handleInputChange("channel_ids", e.target.value)}
+                            <Label>Notification Channel</Label>
+                            <MultiSelect
+                                // options={channels.map(c => ({ label: c.name, value: c.name }))}
+                                options={[{label: "a", value: "abcd"},{label: "b", value: "abcdef"} ]}
+                                selected={selectedChannels}
+                                onChange={setSelectedChannels}
+                                placeholder="Select alert channels..."
                             />
                         </div>
+
+                        {/*<div className="space-y-2">*/}
+                        {/*    <Label htmlFor="channels">Notification Channels</Label>*/}
+                        {/*    <Input*/}
+                        {/*        id="channels"*/}
+                        {/*        value={formData.channel_ids}*/}
+                        {/*        onChange={(e) => handleInputChange("channel_ids", e.target.value)}*/}
+                        {/*    />*/}
+                        {/*</div>*/}
 
                         <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border">
                             <Label htmlFor="enabled" className="cursor-pointer">Job Enabled</Label>
@@ -293,7 +349,8 @@ const JobFormSheet = ({open, onOpenChange, initialData, onSubmit}: JobFormSheetP
                     </div>
                 </div>
 
-                <SheetFooter className="mt-8">
+                {/*<SheetFooter className="mt-8">*/}
+                <SheetFooter className="p-6 shrink-0 border-t bg-slate-50">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700">
                         <Save className="w-4 h-4 mr-2"/> {isEditMode ? "Update Job" : "Create Job"}

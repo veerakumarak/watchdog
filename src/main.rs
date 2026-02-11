@@ -18,7 +18,6 @@ mod validations;
 mod migrations;
 
 use crate::config::{Config, from_env};
-use crate::db::settings_repository::get_settings;
 use crate::models::Settings;
 use crate::notification::dispatcher::NotificationDispatcher;
 use crate::notification::init::init_notification;
@@ -27,9 +26,6 @@ use crate::scheduler::scheduler;
 use crate::settings::from_db;
 use axum::Router;
 use db::connection::{PgPool, get_connection_pool};
-use diesel_async::{AsyncConnection, RunQueryDsl, pg::AsyncPgConnection};
-use futures::StreamExt;
-use serde::Deserialize;
 use std::sync::RwLock;
 use std::{net::SocketAddr, sync::Arc};
 use tower_http::services::{ServeDir, ServeFile};

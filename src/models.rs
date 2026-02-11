@@ -132,6 +132,7 @@ pub struct Settings {
     pub success_retention_days: i32,
     pub failure_retention_days: i32,
     pub maintenance_mode: bool,
-    pub default_channels: String, // Coming from your MultiSelect join(",")
+    pub default_channels: String,
+    pub error_channels: String,
     pub max_stage_duration_hours: i32
 }

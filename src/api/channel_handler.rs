@@ -76,8 +76,11 @@ pub async fn update_channel_handler(
         .await?
         .ok_or(AppError::NotFound(format!("Channel doesn't exists for id '{}'", _id)))?;
 
+    info!("{}", &_config);
+
     _channel.provider_type = _update_request.provider_type;
     _channel.configuration = _config;
+
 
     let updated = save_channel(&mut conn, _channel).await?;
     Ok(AppResponse::success_one("channel", updated.into()))

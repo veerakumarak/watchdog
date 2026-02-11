@@ -44,7 +44,7 @@ pub fn validate_url(url: &String) -> Result<(), ValidationError> {
 
 pub fn validate_config_json(config_str: &str) -> Result<(), ValidationError> {
     // Step 1: Is it valid JSON?
-    let json: Value = serde_json::from_str(config_str)
+    let _json: Value = serde_json::from_str(config_str)
         .map_err(|_| ValidationError::new("invalid_json"))?;
 
     // Step 2: Extract the specific field you need to validate

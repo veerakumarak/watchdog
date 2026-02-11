@@ -2,7 +2,7 @@ import {Result} from "ts-fp-utils/dist/result";
 import {ApiFailure} from "ts-fp-utils/dist/failures/ApiFailure";
 import {AuthFailure} from "ts-fp-utils/dist/failures/AuthFailure";
 import type {JSend} from "@/lib/jsend";
-import {EXTERNAL_API_BASE_URL} from "@/api/common.ts";
+import {EXTERNAL_API_BASE_URL} from "@/api/common";
 import camelcaseKeys from "camelcase-keys";
 import snakecaseKeys from "snakecase-keys";
 

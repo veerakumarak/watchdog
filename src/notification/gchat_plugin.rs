@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tracing::info;
 use validator::Validate;
 use crate::errors::AppError;
 use crate::models::{ProviderType};
@@ -36,17 +37,17 @@ impl NotificationPlugin for GchatPlugin {
     }
 
     async fn send(&self, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage_name: &String, message_opt: Option<String>, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+        info!("sending gchat notification: {:?} with config: {:?}", alert_type, config);
+
         let webhook_url = config["webhook_url"].as_str().unwrap(); // Safe due to validation
         let message = render_message(alert_type, app_name, job_name, run_id_opt, stage_name, message_opt);
-
-        println!("sending to url: {}", webhook_url);
 
         let client = Client::new();
 
         let payload = json!({
             "text": message
         });
-        println!("sending payload: {}", payload);
+        info!("sending payload: {}", payload);
 
         let res = client.post(webhook_url)
             .json(&payload)
@@ -54,7 +55,7 @@ impl NotificationPlugin for GchatPlugin {
             .await
             .map_err(|e| AppError::BadRequest(format!("Failed to build request: {}", e)))?;
 
-        println!("{:?}", res);
+        info!("notification status: {:?}", res);
 
         Ok(())
     }

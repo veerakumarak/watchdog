@@ -48,6 +48,8 @@ impl NotificationPlugin for EmailPlugin {
 
 
     async fn send(&self, app_name: &String, job_name: &String, run_id_opt: Option<String>, stage_name: &String, message_opt: Option<String>, config: &Value, alert_type: AlertType) -> Result<(), AppError> {
+        info!("sending email notification: {:?} with config: {:?}", alert_type, config);
+
         let _config: Config = serde_json::from_value(config.clone()).map_err(|e| {
             AppError::BadRequest(format!("invalid config provided {}", e))
         })?;
@@ -56,6 +58,8 @@ impl NotificationPlugin for EmailPlugin {
             .map_err(|e| AppError::InternalError(format!("unable to connect to email server {}", e)))?;
 
         let (subject, body) = render_message(alert_type, app_name, job_name, run_id_opt,stage_name, message_opt);
+
+        info!("sending subject: {}\nbody: {}", subject, body);
 
         let email = Message::builder()
             .from(_config.from_address.parse().unwrap())
